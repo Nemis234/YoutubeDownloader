@@ -13,6 +13,10 @@ import subprocess
 import threading 
 import time
 import sys
+#Internet checking and errors
+import http.client as httplib
+from urllib.error import URLError
+from socket import errorTab
 
 from proglog import default_bar_logger
 
@@ -110,6 +114,8 @@ class DownloadGUI():
         self.cancel_all = False
         self.running_count = self.end
 
+        self.checking_internet = False
+
         self.will_concate = will_concate
         self.concated = False
         self.paths = []
@@ -134,6 +140,15 @@ class DownloadGUI():
             self.run()
             self.root.mainloop()
 
+    def have_internet(self):
+        conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)
+        try:
+            conn.request("HEAD", "/")
+            return True
+        except Exception:
+            return False
+        finally:
+            conn.close()
 
     def run(self):
         print("running")
@@ -160,10 +175,13 @@ class DownloadGUI():
             stream_obj.make_prefix()
 
             print(stream_obj)
-            pass
+            #pass
+            if not self.have_internet():
+                messagebox.showerror("No connection","No connection to YouTube found\nTry again later")
+                return self.root.destroy()
             DownloadThread.numb+=1
-            vid_work = DownloadThread(self,stream_obj,isaudio,int(float(DownloadThread.numb)))
-            vid_work.start()
+            worker = DownloadThread(self,stream_obj,isaudio,int(float(DownloadThread.numb)))
+            worker.start()
 
         return
         if not audio_stream_no == None:
@@ -432,8 +450,8 @@ class DownloadThread(threading.Thread):
         self.ui.def_file_size(self.filesize)
 
         try:
-            
             stream = request.stream(url=stream.url) # get an iterable stream
+            
             self.ui.paths.append((path,isaudio))
             downloaded = 0
             i = 0
@@ -462,6 +480,8 @@ class DownloadThread(threading.Thread):
                     continue
                 i += 1
                 print("downloading chunk")
+                messagebox.showerror("con","Start download here")
+                #Connecting to internet
                 chunk = next(stream,None) # get next chunk of video
                 print("downloaded chunk done")
                 if chunk:
@@ -497,10 +517,18 @@ class DownloadThread(threading.Thread):
             sys.stderr = sys.__stderr__ 
             print("An error has occurred\n",e)
             self.ui.delete_files()
+        except httplib.RemoteDisconnected:
+            messagebox.showerror("Server error","The connection to the server was severed\nPlease try again")
+            print("The connection to the server was severed.\nPlease try again")
+        except URLError as e:
+            messagebox.showerror("Network error","A network error has occured\nTry again later")
+            print("A network error has occured\nTry again later")
+        """ except Exception as error:
+            messagebox.showerror("Unknown error","An unexpected error has occured\nPlease try again")
+            print("An exeption was made with the error:",error) """
 
 if __name__ == "__main__":
-    pass
-    from pytube import YouTube
+    """ from pytube import YouTube
     from os.path import dirname, exists
     from os import makedirs, listdir
     link = "dQw4w9WgXcQ"
@@ -555,4 +583,4 @@ if __name__ == "__main__":
         DownloadGUI(None,(yt,video_stream_no,audio_stream_no,directory,prefix),will_concate).run()
 
     submit_link()
-    initDownload(yt_obj,17,None,False)
+    initDownload(yt_obj,17,None,False) """

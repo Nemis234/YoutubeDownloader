@@ -1,21 +1,22 @@
 #Youtube downloader
 from pytube import YouTube
-#Images
-import requests
-from PIL import Image,ImageTk
 #Pathing
 from os.path import dirname,exists
 from os import makedirs,listdir
-#Tkinter windows
+#Tkinter
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter.font import Font as tkFont
 from tkinter import messagebox
+#Multiprocessing
+import multiprocess #Alternate to multiprocessing
+import threading
+#Images
+import requests
+from PIL import Image,ImageTk
 #Other
 from collections import defaultdict 
 import http.client as httplib #Cheks for internet connection
-import multiprocess #Alternate to multiprocessing
-import threading
 
 #Download GUI
 from DownloadGUI import DownloadGUI
@@ -160,17 +161,20 @@ class Stream():
         
         return name
 
-class Window(tk.Tk):
+class MainWindow(tk.Tk):
     button_color = "#7b7b7b"
     size_scale = 1
     DownloadGUI
 
     def __init__(self, size:tuple=(450,280),size_scale: int=1.5) -> None:
         tk.Tk.__init__(self)
-        x,y = size
+        self.x,self.y=x,y = size
         self.size = size = f"{int(round(x*size_scale,0))}x{int(round(y*size_scale,0))}"
-        Window.size_scale = size_scale
+        MainWindow.size_scale = size_scale
         self = self.initPopup(self,size,focus=True)
+        self.init_rest(size_scale)
+    
+    def init_rest(self,size_scale):
         self.yt = None
         self.link = None
         self.streams = None
@@ -210,6 +214,9 @@ class Window(tk.Tk):
 
 
                 try:
+                    if not self.have_internet():
+                        return False
+
                     yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder)
                     streams=yt.streams
 
@@ -221,7 +228,13 @@ class Window(tk.Tk):
             
             if self.link == None or not self.link.split("?v=")[-1] == yt_link_input.get().split("?v=")[-1]:
                 try:
-                    self.yt,self.streams,self.link = yt,yt_streams,link = getYtObject()
+                    yt_link_bundle = getYtObject()
+                    if not yt_link_bundle:
+                        messagebox.showerror("No connection","No connection to YouTube found\nTry again later")
+                        return
+                    print("using")
+                    self.yt,self.streams,self.link = yt,yt_streams,link = yt_link_bundle
+                
                 except NoLink:
                     self.running_tasks -= 1
                     return
@@ -268,7 +281,10 @@ class Window(tk.Tk):
             video_type_options.sort()
             dropdown_type.update_options(video_type_options)
             
-
+            if not self.have_internet():
+                messagebox.showerror("No connection","No connection to YouTube found\nTry again later")
+                return
+            
             thumbnail_url = self.yt.thumbnail_url
             thumbnail_image = Image.open(requests.get(thumbnail_url, stream=True).raw)
             thumbnail_image.thumbnail(image_size)
@@ -463,23 +479,6 @@ class Window(tk.Tk):
         
         url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
-        def have_internet():
-            conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)
-            try:
-                conn.request("HEAD", "/")
-                return True
-            except Exception:
-                return False
-            finally:
-                conn.close()
-
-        if not have_internet():
-            row = 1
-            label = tk.Label(self, text="No connection to YouTube found", font=("Arial",int(round(20*1.7,0))))
-            label.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
-            return
-
-
         row = 1
         label = tk.Label(self, text="YouTube nedlasting", font=("Arial",int(round(fontSize*1.7,0))))
         label.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
@@ -502,9 +501,17 @@ class Window(tk.Tk):
             self.running_tasks += 1
             threading.Thread(target=submit_link, args=(None,)).start()
         
-        button1 = tk.Button(self,text="Submit link",command=do_tasks,bg = Window.button_color,font=font)
+        button1 = tk.Button(self,text="Submit link",command=do_tasks,bg = MainWindow.button_color,font=font)
         button1.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
 
+        
+        if not self.have_internet():
+            if messagebox.askretrycancel("No connection","No connection to YouTube found"):
+                self.retry_setup(size_scale=size_scale)
+            else:
+                self.destroy()
+                return
+            return
 
         frame=tk.Frame(self,highlightbackground="blue", highlightthickness=2)
         
@@ -556,7 +563,7 @@ class Window(tk.Tk):
 
 
         row = 4
-        button = tk.Button(frame2, text="Submit", command=start_download, bg=Window.button_color,font=font)
+        button = tk.Button(frame2, text="Submit", command=start_download, bg=MainWindow.button_color,font=font)
         button.grid(row=row,column=0,pady=paddy,padx=paddx, columnspan=2)
 
 
@@ -642,6 +649,30 @@ class Window(tk.Tk):
             tkPopup.bind('<FocusOut>', lossfocus)
         return tkPopup
 
+    def have_internet(self):
+        conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)
+        try:
+            conn.request("HEAD", "/")
+            return True
+        except Exception:
+            return False
+        finally:
+            conn.close()
+ 
+    def retry_setup(self,event=None,size_scale=(1.5)):
+        for widget in self.winfo_children():
+            widget.destroy()
+        print("Retried")
+        self.init_rest(size_scale)
+        
+        return
+        self.destroy()
+        print(self.size)
+        gu = MainWindow((self.x,self.y),self.size_scale)
+        print("STARTING")
+        gu.mainloop()
+
+
     def initDownload(self,yt:object,stream_objects:list,will_concate:bool = False):
         directory = dirname(__file__)+"\\"
 
@@ -652,7 +683,13 @@ class Window(tk.Tk):
         for stream in stream_objects:
             stream.set_directory(directory)
         
+        if not self.have_internet():
+            if messagebox.askretrycancel("No connection","No connection to YouTube found\nTry again later"):
+                return self.initDownload(yt,stream_objects,will_concate)
+            return
+        
         print(f"Starting download, numbers :{stream_objects}")
+
                 
         new_process = multiprocess.Process(target=run_download,args=(None,stream_objects,will_concate))
         new_process.start()
@@ -664,7 +701,7 @@ if __name__ == "__main__":
     width = 450
     height = 280
     scale = 1.5
-    gu = Window((width,height),scale)
+    gu = MainWindow((width,height),scale)
     print("STARTING")
     gu.mainloop()
     "https://www.youtube.com/watch?v=PAI9NIbNgk4"
