@@ -1,5 +1,13 @@
 #Youtube downloader
-from pytube import YouTube
+import pytube
+from pytube import YouTube,extract
+import pytube.exceptions as exceptions
+from pytube.exceptions import RegexMatchError,VideoUnavailable,AgeRestrictedError,VideoPrivate
+
+#Test
+from io import StringIO
+import sys
+
 #Pathing
 from os.path import dirname,exists
 from os import makedirs,listdir
@@ -204,10 +212,14 @@ class MainWindow(tk.Tk):
                     self.running_tasks -= 1
                     raise NoLink
                 
+                valid = ["youtube.com/watch?v=",
+                         "youtube.com/embed/",
+                         "youtu.be/"]
 
+                
                 try:
-                    if not "youtube.com/watch?v=" in link:
-                        link = "youtube.com/watch?v=" + link
+                    if not any([(True if x in link else False) for x in valid]):
+                        link = "youtube.com/watch?v=" + link 
                 except TypeError as error:
                     self.running_tasks -= 1
                     raise NoLink
@@ -217,15 +229,58 @@ class MainWindow(tk.Tk):
                     if not self.have_internet():
                         return False
 
-                    yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder)
-                    streams=yt.streams
+                    #old_stdout = sys.stdout
+                    try:
+                        #sys.stdout = mystdout = StringIO()
+                        yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,use_oauth=False)
+                        #value = mystdout.getvalue()
+                        streams = yt.streams
+                        messagebox.askokcancel("Oauth","Hei")
 
-                except Exception as error:
-                    self.running_tasks -= 1
-                    raise NoLink
+                        """ old_stdin = sys.stdin
+                        try:
+                            sys.stdin = StringIO('asdlkj')
+                        finally:
+                            sys.stdin = old_stdin """
+                    except:
+                        pass
+                    finally:
+                        pass
+                        #sys.stdout = old_stdout
+                    #sys.stdout = old_stdout
+                    print("printing",value)
+                
+                except exceptions.RegexMatchError:
+                    messagebox.showwarning("Invalid input","Invalid link submited\nPlease try again")
+                    return NoLink
 
+                except exceptions.AgeRestrictedError:
+                    old_stdout = sys.stdout
+                    try:
+                        sys.stdout = mystdout = StringIO()
+                        yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,use_oauth=True)
+                    except:
+                        pass
+                    finally:
+                        sys.stdout = old_stdout
+                    value = mystdout.getvalue()
+                    sys.stdout = old_stdout
+                    print(value)
+
+
+                except exceptions.VideoUnavailable as error:
+                    messagebox.showwarning("Video unavailable",error.error_string())
+                    return NoLink
+                
+                except Exception:
+                    print("hi")
+                    return NoLink
+                
+                streams=yt.streams
+
+                
                 return yt,streams,link
-            
+
             if self.link == None or not self.link.split("?v=")[-1] == yt_link_input.get().split("?v=")[-1]:
                 try:
                     yt_link_bundle = getYtObject()
@@ -477,7 +532,7 @@ class MainWindow(tk.Tk):
         fontSize = int(round(10 * size_scale,0))
         font = ("Arial",fontSize)
         
-        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        url = "https://www.youtube.com/watch?v=0IhmkF50VgE"
 
         row = 1
         label = tk.Label(self, text="YouTube nedlasting", font=("Arial",int(round(fontSize*1.7,0))))
