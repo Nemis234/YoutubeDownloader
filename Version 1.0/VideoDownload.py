@@ -1,12 +1,7 @@
 #Youtube downloader
-import pytube
-from pytube import YouTube,extract
-import pytube.exceptions as exceptions
-from pytube.exceptions import RegexMatchError,VideoUnavailable,AgeRestrictedError,VideoPrivate
 
-#Test
-from io import StringIO
-import sys
+from pytube import YouTube, exceptions
+from urllib.error import URLError
 
 #Pathing
 from os.path import dirname,exists
@@ -229,52 +224,32 @@ class MainWindow(tk.Tk):
                     if not self.have_internet():
                         return False
 
-                    #old_stdout = sys.stdout
-                    try:
-                        #sys.stdout = mystdout = StringIO()
-                        yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,use_oauth=False)
-                        #value = mystdout.getvalue()
-                        streams = yt.streams
-                        messagebox.askokcancel("Oauth","Hei")
 
-                        """ old_stdin = sys.stdin
-                        try:
-                            sys.stdin = StringIO('asdlkj')
-                        finally:
-                            sys.stdin = old_stdin """
-                    except:
-                        pass
-                    finally:
-                        pass
-                        #sys.stdout = old_stdout
-                    #sys.stdout = old_stdout
-                    print("printing",value)
+                    yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder)
+                    streams=yt.streams
                 
                 except exceptions.RegexMatchError:
                     messagebox.showwarning("Invalid input","Invalid link submited\nPlease try again")
-                    return NoLink
+                    raise NoLink
 
                 except exceptions.AgeRestrictedError:
-                    old_stdout = sys.stdout
-                    try:
-                        sys.stdout = mystdout = StringIO()
-                        yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,use_oauth=True)
-                    except:
-                        pass
-                    finally:
-                        sys.stdout = old_stdout
-                    value = mystdout.getvalue()
-                    sys.stdout = old_stdout
-                    print(value)
+                    messagebox.showwarning("Agerestricted","This video is age restricted\nDownload unavailable")
+                    raise NoLink
+                    
+
 
 
                 except exceptions.VideoUnavailable as error:
                     messagebox.showwarning("Video unavailable",error.error_string())
-                    return NoLink
-                
-                except Exception:
-                    print("hi")
-                    return NoLink
+
+                    raise NoLink
+                except URLError as e:
+                    messagebox.showwarning("Network error",f"A network error has occured with the following exception:\n{e}")
+                    raise NoLink
+                except Exception as e:
+                    messagebox.showwarning("Unknown error",f"An uncatched error has occured:\n{e}")
+                    raise NoLink
+
                 
                 streams=yt.streams
 
@@ -286,7 +261,7 @@ class MainWindow(tk.Tk):
                     yt_link_bundle = getYtObject()
                     if not yt_link_bundle:
                         messagebox.showerror("No connection","No connection to YouTube found\nTry again later")
-                        return
+                        raise NoLink
                     print("using")
                     self.yt,self.streams,self.link = yt,yt_streams,link = yt_link_bundle
                 
