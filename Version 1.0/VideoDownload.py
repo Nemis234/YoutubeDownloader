@@ -1,6 +1,8 @@
 #Youtube downloader
+
 from pytube import YouTube, exceptions
 from urllib.error import URLError
+
 #Pathing
 from os.path import dirname,exists
 from os import makedirs,listdir
@@ -205,10 +207,14 @@ class MainWindow(tk.Tk):
                     self.running_tasks -= 1
                     raise NoLink
                 
+                valid = ["youtube.com/watch?v=",
+                         "youtube.com/embed/",
+                         "youtu.be/"]
 
+                
                 try:
-                    if not "youtube.com/watch?v=" in link:
-                        link = "youtube.com/watch?v=" + link
+                    if not any([(True if x in link else False) for x in valid]):
+                        link = "youtube.com/watch?v=" + link 
                 except TypeError as error:
                     self.running_tasks -= 1
                     raise NoLink
@@ -217,6 +223,7 @@ class MainWindow(tk.Tk):
                 try:
                     if not self.have_internet():
                         return False
+
 
                     yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder)
                     streams=yt.streams
@@ -228,21 +235,13 @@ class MainWindow(tk.Tk):
                 except exceptions.AgeRestrictedError:
                     messagebox.showwarning("Agerestricted","This video is age restricted\nDownload unavailable")
                     raise NoLink
-                    """ old_stdout = sys.stdout
-                    try:
-                        sys.stdout = mystdout = StringIO()
-                        yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,use_oauth=True)
-                    except:
-                        pass
-                    finally:
-                        sys.stdout = old_stdout
-                    value = mystdout.getvalue()
-                    sys.stdout = old_stdout
-                    print(value) """
+                    
+
 
 
                 except exceptions.VideoUnavailable as error:
                     messagebox.showwarning("Video unavailable",error.error_string())
+
                     raise NoLink
                 except URLError as e:
                     messagebox.showwarning("Network error",f"A network error has occured with the following exception:\n{e}")
@@ -250,11 +249,13 @@ class MainWindow(tk.Tk):
                 except Exception as e:
                     messagebox.showwarning("Unknown error",f"An uncatched error has occured:\n{e}")
                     raise NoLink
+
                 
                 streams=yt.streams
 
+                
                 return yt,streams,link
-            
+
             if self.link == None or not self.link.split("?v=")[-1] == yt_link_input.get().split("?v=")[-1]:
                 try:
                     yt_link_bundle = getYtObject()
@@ -506,7 +507,7 @@ class MainWindow(tk.Tk):
         fontSize = int(round(10 * size_scale,0))
         font = ("Arial",fontSize)
         
-        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        url = "https://www.youtube.com/watch?v=0IhmkF50VgE"
 
         row = 1
         label = tk.Label(self, text="YouTube nedlasting", font=("Arial",int(round(fontSize*1.7,0))))
