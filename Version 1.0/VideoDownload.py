@@ -223,7 +223,6 @@ class MainWindow(tk.Tk):
                     if not self.have_internet():
                         return False
 
-
                     yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder)
                     streams = yt.streams
                 
@@ -235,7 +234,6 @@ class MainWindow(tk.Tk):
                     raise NoLink
                 except exceptions.VideoUnavailable as error:
                     messagebox.showwarning("Video unavailable",error.error_string())
-
                     raise NoLink
                 except URLError as e:
                     messagebox.showwarning("Network error",f"A network error has occured with the following exception:\n{e}")
