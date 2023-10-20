@@ -16,9 +16,6 @@ import sys
 #Internet checking and errors
 import http.client as httplib
 from urllib.error import URLError
-from socket import errorTab
-
-from proglog import default_bar_logger
 
 
 class PrintLogger(): # create file like object
@@ -155,6 +152,7 @@ class DownloadGUI():
         isaudio = False
         
         for stream_obj in self.stream_objects:
+            isaudio = False
             
             stream_number = stream_obj.number
             yt = stream_obj.yt
@@ -463,9 +461,11 @@ class DownloadThread(threading.Thread):
                 self.ui.running_count -= 1
                 DownloadThread.numb -= 1
                 print("Cancelled", self.ui.running_count)
+            
             def pause():
-                print("UI paused")
-                time.sleep(0.5)
+                while self.ui.stop:
+                    print("UI paused")
+                    time.sleep(0.5)
             
             while True:
                 if self.is_cancelled or self.ui.cancel_all:
@@ -475,12 +475,13 @@ class DownloadThread(threading.Thread):
                     print("Paused")
                     time.sleep(1)
                     continue
+
                 if self.ui.stop:
                     pause()
-                    continue
+                    
                 i += 1
                 print("downloading chunk")
-                messagebox.showerror("con","Start download here")
+                #messagebox.showerror("con","Start download here")#test
                 #Connecting to internet
                 chunk = next(stream,None) # get next chunk of video
                 print("downloaded chunk done")
@@ -488,7 +489,9 @@ class DownloadThread(threading.Thread):
                     if self.is_cancelled or self.ui.cancel_all:
                         stop()
                         break
-
+                    if self.ui.stop:
+                        pause()
+                        
                     downloaded = len(chunk)
                     if exists(path):
                         with open(path, 'ab') as file:
@@ -523,9 +526,9 @@ class DownloadThread(threading.Thread):
         except URLError as e:
             messagebox.showerror("Network error","A network error has occured\nTry again later")
             print("A network error has occured\nTry again later")
-        """ except Exception as error:
+        except Exception as error:
             messagebox.showerror("Unknown error","An unexpected error has occured\nPlease try again")
-            print("An exeption was made with the error:",error) """
+            print("An exeption was made with the error:",error)
 
 if __name__ == "__main__":
     """ from pytube import YouTube
