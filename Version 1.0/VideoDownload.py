@@ -218,7 +218,6 @@ class MainWindow(tk.Tk):
                     self.running_tasks -= 1
                     raise NoLink
 
-
                 try:
                     if not self.have_internet():
                         return False
