@@ -1,6 +1,8 @@
 #Youtube downloader
+
 from pytube import YouTube, exceptions
 from urllib.error import URLError
+
 #Pathing
 from os.path import dirname,exists
 from os import makedirs,listdir
@@ -221,6 +223,7 @@ class MainWindow(tk.Tk):
                     if not self.have_internet():
                         return False
 
+
                     yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder)
                     streams = yt.streams
                 
@@ -232,6 +235,7 @@ class MainWindow(tk.Tk):
                     raise NoLink
                 except exceptions.VideoUnavailable as error:
                     messagebox.showwarning("Video unavailable",error.error_string())
+
                     raise NoLink
                 except URLError as e:
                     messagebox.showwarning("Network error",f"A network error has occured with the following exception:\n{e}")
@@ -239,12 +243,12 @@ class MainWindow(tk.Tk):
                 except Exception as e:
                     messagebox.showwarning("Unknown error",f"An uncatched error has occured:\n{e}")
                     raise NoLink
+
                 
                 streams=yt.streams
 
-                
                 return yt,streams,link
-
+            
             if self.link == None or not self.link.split("?v=")[-1] == yt_link_input.get().split("?v=")[-1]:
                 try:
                     yt_link_bundle = getYtObject()
