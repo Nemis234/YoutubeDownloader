@@ -7,7 +7,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import messagebox
 #Merging files
-import moviepy.editor as moviepy
+#import moviepy.editor as moviepy
 import subprocess
 #Other
 import threading 
@@ -230,6 +230,7 @@ class DownloadGUI():
             self.percent = percent
 
     def concate_files(self, event=None):
+        return
         
         if self.end > 0:
             return
@@ -335,9 +336,11 @@ class DownloadGUI():
                         remove(object.directory + object.get_full_name())
                     except PermissionError as oops:
                         print(oops)
+                        time.sleep(0.1)
                         continue
                     except FileNotFoundError as oops:
                         print(oops)
+                        time.sleep(0.1)
                         continue
                     
                     print("removed")
@@ -463,8 +466,8 @@ class DownloadThread(threading.Thread):
                 print("Cancelled", self.ui.running_count)
             
             def pause():
+                print("UI paused")
                 while self.ui.stop:
-                    print("UI paused")
                     time.sleep(0.5)
             
             while True:
@@ -478,7 +481,7 @@ class DownloadThread(threading.Thread):
 
                 if self.ui.stop:
                     pause()
-                    
+                
                 i += 1
                 print("downloading chunk")
                 #messagebox.showerror("con","Start download here")#test
@@ -491,7 +494,7 @@ class DownloadThread(threading.Thread):
                         break
                     if self.ui.stop:
                         pause()
-                        
+                    
                     downloaded = len(chunk)
                     if exists(path):
                         with open(path, 'ab') as file:

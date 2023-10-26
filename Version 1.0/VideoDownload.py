@@ -1,8 +1,5 @@
 #Youtube downloader
-
-from pytube import YouTube, exceptions
-from urllib.error import URLError
-
+from pytube import YouTube
 #Pathing
 from os.path import dirname,exists
 from os import makedirs,listdir
@@ -17,6 +14,9 @@ import threading
 #Images
 import requests
 from PIL import Image,ImageTk
+#Error handeling
+from pytube import exceptions
+from urllib.error import URLError
 #Other
 from collections import defaultdict 
 import http.client as httplib #Cheks for internet connection
@@ -220,26 +220,25 @@ class MainWindow(tk.Tk):
 
                 try:
                     if not self.have_internet():
-                        return False
+                        raise NoConnection
 
                     yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder)
                     streams = yt.streams
                 
                 except exceptions.RegexMatchError:
-                    messagebox.showwarning("Invalid input","Invalid link submited\nPlease try again")
                     raise NoLink
                 except exceptions.AgeRestrictedError:
                     messagebox.showwarning("Agerestricted","This video is age restricted\nDownload unavailable")
-                    raise NoLink
-                except exceptions.VideoUnavailable as error:
-                    messagebox.showwarning("Video unavailable",error.error_string())
-                    raise NoLink
+                    raise Exception
+                except exceptions.VideoUnavailable as e:
+                    messagebox.showwarning("Video unavailable",e.error_string())
+                    raise Exception
                 except URLError as e:
                     messagebox.showwarning("Network error",f"A network error has occured with the following exception:\n{e}")
-                    raise NoLink
+                    raise Exception
                 except Exception as e:
                     messagebox.showwarning("Unknown error",f"An uncatched error has occured:\n{e}")
-                    raise NoLink
+                    raise Exception
 
                 
                 streams=yt.streams
@@ -250,14 +249,23 @@ class MainWindow(tk.Tk):
                 try:
                     yt_link_bundle = getYtObject()
                     if not yt_link_bundle:
-                        messagebox.showerror("No connection","No connection to YouTube found\nTry again later")
-                        raise NoLink
+                        messagebox.showwarning("Unknown error",f"An unknown error has occured\n Please try again")
+                        raise Exception
                     print("using")
                     self.yt,self.streams,self.link = yt,yt_streams,link = yt_link_bundle
                 
                 except NoLink:
+                    messagebox.showwarning("Invalid input","Invalid link submited\nPlease try again")
                     self.running_tasks -= 1
                     return
+                except NoConnection:
+                    messagebox.showerror("No connection","No connection to YouTube found\nTry again later")
+                    self.running_tasks -= 1
+                    return
+                except Exception:
+                    self.running_tasks -= 1
+                    return
+                
             else:
                 yt_streams = self.streams
             streams = []
