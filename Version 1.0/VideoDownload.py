@@ -20,7 +20,6 @@ from urllib.error import URLError
 #Other
 from collections import defaultdict 
 import http.client as httplib #Cheks for internet connection
-
 #Download GUI
 from DownloadGUI import DownloadGUI
 
@@ -53,7 +52,7 @@ class DropDown(tk.OptionMenu):
         # add the callback function to the dropdown
         dd.add_callback(callback)
     """
-    def __init__(self, parent, options: list, initial_value: str=None,font: tuple = None):
+    def __init__(self, parent, options: list, initial_value: str=None,font: tkFont = None):
         """
         Constructor for drop down entry
 
@@ -69,9 +68,9 @@ class DropDown(tk.OptionMenu):
      
         if font:
             self.config(font=font)
-            helv20 = tkFont(family=font[0], size=font[1])
+            #helv20 = tkFont(family=font[0], size=font[1])
             menu = parent.nametowidget(self.menuname)  # Get menu widget.
-            menu.config(font=helv20)  # Set the dropdown menu's font
+            menu.config(font=font)  # Set the dropdown menu's font
 
 
         self.callback = None
@@ -167,16 +166,22 @@ class Stream():
 class MainWindow(tk.Tk):
     button_color = "#7b7b7b"
     size_scale = 1
-    DownloadGUI
-
-    def __init__(self, size:tuple=(450,280),size_scale: int=1.5) -> None:
-        tk.Tk.__init__(self)
-        self.x,self.y=x,y = size
-        self.size = size = f"{int(round(x*size_scale,0))}x{int(round(y*size_scale,0))}"
-        MainWindow.size_scale = size_scale
-        self = self.initPopup(self,size,focus=True)
-        self.init_rest(size_scale)
     
+    def __init__(self, size:tuple=(450,280),size_scale: float=1.5) -> None:
+        #Init all variables
+        self.video_type_options = list()
+        self.audio_type_quality = list()
+        self.video_type_res = list()
+
+        self.x,self.y=x,y = size
+        self.size = size_str = f"{int(round(x*size_scale,0))}x{int(round(y*size_scale,0))}"
+        MainWindow.size_scale = size_scale
+
+        tk.Tk.__init__(self)
+        self.init_rest(size_scale)
+        self = self.initPopup(self,size_str,focus=False, resizable=True)
+
+
     def init_rest(self,size_scale):
         self.yt = None
         self.link = None
@@ -197,6 +202,7 @@ class MainWindow(tk.Tk):
                 self.focusedout = True
         
         def submit_link(event=None):
+            yt_streams, yt, link = None,None,None
             def placeholder(*a,**kw):
                 print("hi")
             
@@ -219,11 +225,13 @@ class MainWindow(tk.Tk):
                     raise NoLink
 
                 try:
+                    print("Getting yt object")
                     if not self.have_internet():
                         raise NoConnection
 
                     yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder)
                     streams = yt.streams
+                    print("yt object aquired")
                 
                 except exceptions.RegexMatchError:
                     raise NoLink
@@ -270,6 +278,8 @@ class MainWindow(tk.Tk):
                 yt_streams = self.streams
             streams = []
             #[print(x) for x in yt_stream]
+            if yt_streams == None or yt==None:
+                return
             
             for x in yt_streams:
                 single_stream = []
@@ -291,7 +301,8 @@ class MainWindow(tk.Tk):
                 except: hei.append(None) """
                 streams.append(single_stream)
             video_streams = [x for x in streams if x[1][0] == "video"]
-            self.video_type_res = video_type_res = [(x[0],x[1][1],x[2]) if x[3] == None else (x[0],f"{x[1][1]} (w/audio)",x[2]) for x in video_streams]
+                                                #Stream_number file_type video_quality audio_quality, only video         Video with audio
+            self.video_type_res = video_type_res = [(x[0]      ,x[1][1],   x[2]) if       x[3] ==    None else (x[0],f"{x[1][1]} (w/audio)",x[2]) for x in video_streams]
 
             audio_streams = [x for x in streams if x[1][0] == "audio"]
             self.audio_type_quality = audio_type_quality = [(x[0],x[1][1],x[3]) for x in audio_streams]
@@ -490,6 +501,9 @@ class MainWindow(tk.Tk):
         self.bind('<Escape>', onKeyEscape)
         self.bind('<FocusIn>', raise_toplevel_windows)
         self.bind("<FocusOut>", raise_toplevel_windows)
+                
+        self.bind("<F11>", self.toggle_fullscreen)
+        #self.tk.bind("<Escape>", self.end_fullscreen)
 
         self.title("Download youtube")
         
@@ -498,6 +512,11 @@ class MainWindow(tk.Tk):
 
         self.grid_columnconfigure(0, weight=1,uniform="fred")
         self.grid_columnconfigure(1, weight=1,uniform="fred")
+        for i in range(1,5+1):
+            pass
+            #self.grid_rowconfigure(i,weight=1)
+        
+        
 
         paddx = int(round(2 * size_scale,0))
         paddy = int(round(3 * size_scale,0))
@@ -506,16 +525,17 @@ class MainWindow(tk.Tk):
         font = ("Arial",fontSize)
         
         url = "https://www.youtube.com/watch?v=0IhmkF50VgE"
+        default_font = tkFont(font=font[0],size=fontSize)
 
         row = 1
         label = tk.Label(self, text="YouTube nedlasting", font=("Arial",int(round(fontSize*1.7,0))))
         label.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
-
+        
         row = 2
-        label = tk.Label(self,text="Videolink eller ID: ", font=font)
+        label = tk.Label(self,text="Videolink eller ID: ", font=default_font)
         label.grid(row=row,column=0,pady=paddy,padx=paddx)
 
-        yt_link_input = tk.Entry(self,font=font)
+        yt_link_input = tk.Entry(self,font=default_font)
         yt_link_input.insert(0,"dQw4w9WgXcQ")#"0IhmkF50VgE")
         yt_link_input.grid(row=row,column=1,pady=paddy,padx=paddx)
 
@@ -529,7 +549,7 @@ class MainWindow(tk.Tk):
             self.running_tasks += 1
             threading.Thread(target=submit_link, args=(None,)).start()
         
-        button1 = tk.Button(self,text="Submit link",command=do_tasks,bg = MainWindow.button_color,font=font)
+        button1 = tk.Button(self,text="Submit link",command=do_tasks,bg = MainWindow.button_color,font=default_font)
         button1.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
 
         
@@ -561,42 +581,41 @@ class MainWindow(tk.Tk):
         
 
         row = 1
-        label = tk.Label(frame2,text="Filformat: ", font=font)
+        label = tk.Label(frame2,text="Filformat: ", font=default_font)
         label.grid(row=row,column=0,pady=paddy,padx=paddx)
 
         video_type_options = ["Placeholder"]
 
-        dropdown_type = DropDown(frame2,video_type_options,font=font)
+        dropdown_type = DropDown(frame2,video_type_options,font=default_font)
         dropdown_type.add_callback(type_dropdown_func)
         dropdown_type.grid(row=row,column=1,pady=paddy,padx=paddx)
         
 
         row = 2
-        label_res = tk.Label(frame2,text="Videooppløsning: ", font=font)
+        label_res = tk.Label(frame2,text="Videooppløsning: ", font=default_font)
         label_res.grid(row=row,column=0,pady=paddy,padx=paddx)
 
         options_res = ["720p","480p","360p","240p","144p"]
         
-        dropdown_vid_res = DropDown(frame2,options_res,font=font)
+        dropdown_vid_res = DropDown(frame2,options_res,font=default_font)
         dropdown_vid_res.grid(row=row,column=1,pady=paddy,padx=paddx)
 
         row = 3
-        label_qual = tk.Label(frame2,text="Lydkvalitet: ", font=font)
-        label_qual .grid(row=row,column=0,pady=paddy,padx=paddx)
+        label_qual = tk.Label(frame2,text="Lydkvalitet: ", font=default_font)
+        label_qual.grid(row=row,column=0,pady=paddy,padx=paddx)
 
         options_qual = ["70kbps","160kbps"]
         
-        dropdown_aud = DropDown(frame2,options_qual,font=font)
+        dropdown_aud = DropDown(frame2,options_qual,font=default_font)
         dropdown_aud.grid(row=row,column=1,pady=paddy,padx=paddx)
-
-
-        row = 4
-        button = tk.Button(frame2, text="Submit", command=start_download, bg=MainWindow.button_color,font=font)
-        button.grid(row=row,column=0,pady=paddy,padx=paddx, columnspan=2)
 
 
         frame.grid(row=4,column=1, sticky="n")#,pady=paddy*4)
         frame2.grid(row=4,column=0,columnspan=1)
+
+        button = tk.Button(self, text="Submit", command=start_download, bg=MainWindow.button_color,font=default_font)
+        button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=2)
+
 
 
         def hide_show_widgets(hide=True):
@@ -611,7 +630,7 @@ class MainWindow(tk.Tk):
                     if i > 3:
                         liste[i].grid()
 
-        hide_show_widgets()
+        #hide_show_widgets()
 
         yt_link_input.focus_set()
 
@@ -635,7 +654,7 @@ class MainWindow(tk.Tk):
             dropdown_vid_res.bind("<Down>", resolution_arrow)
 
 
-    def initPopup(self:any=None, root: any = None,wid:str="300x400", focus:bool=False, title: str = ""):
+    def initPopup(self:object=None, root:tk.Tk = None,wid:str="300x400", focus:bool=False, title: str = "", resizable:bool = False):
         """Lager et tkinter vindu sentrert på skjermen, uansett størrelse. 
         Hvis root ikke er definert, leger et nytt vindu som blir lukket når hovedvinduet lukkes
         \n:focus: om vinduet skal lukkes når brukeren klikker av
@@ -661,19 +680,21 @@ class MainWindow(tk.Tk):
 
         def lossfocus(event):
             """Lukker vinduet hvis brukeren klikker av tkinter-vinduet"""
+            print("focus out")
             if event.widget is tkPopup:
                 w = tkPopup.tk.call('focus')
                 if not w:
                     tkPopup.destroy()
+        
         if root == None:
             tkPopup = tk.Toplevel()
             tkPopup.title(title)
         else:
             tkPopup = root
         tkPopup.geometry(wid)
-        tkPopup.resizable(False,False)
+        tkPopup.resizable(resizable,resizable)
         center(tkPopup)
-        if not focus:
+        if focus:
             tkPopup.bind('<FocusOut>', lossfocus)
         return tkPopup
 
@@ -700,6 +721,13 @@ class MainWindow(tk.Tk):
         print("STARTING")
         gu.mainloop()
 
+    def toggle_fullscreen(self, event=None):
+        if self.state()=='zoomed':
+            self.state('normal')
+        else:
+            self.state('zoomed')
+        return
+
 
     def initDownload(self,yt:object,stream_objects:list,will_concate:bool = False):
         directory = dirname(__file__)+"\\"
@@ -718,11 +746,12 @@ class MainWindow(tk.Tk):
         
         print(f"Starting download, numbers :{stream_objects}")
 
-                
-        new_process = multiprocess.Process(target=run_download,args=(None,stream_objects,will_concate))
-        new_process.start()
+        threading.Thread(target=run_download,args=(None,stream_objects,will_concate)).start()
+        """ new_process = multiprocess.Process(target=run_download,args=(None,stream_objects,will_concate))
+        new_process.start() """
 
-def run_download(root = None,stream_objects=None,will_concate=None):
+def run_download(root:tk.Tk=None,stream_objects:Stream=None,will_concate:bool=None):
+    print("starting")
     DownloadGUI(root ,stream_objects,will_concate)
     
 if __name__ == "__main__":
