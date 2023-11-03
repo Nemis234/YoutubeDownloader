@@ -6,16 +6,18 @@ from os.path import exists
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import messagebox
-#Merging files
-#import moviepy.editor as moviepy
-import subprocess
+#Internet checking and errors
+import http.client as httplib
+from urllib.error import URLError
 #Other
 import threading 
 import time
 import sys
-#Internet checking and errors
-import http.client as httplib
-from urllib.error import URLError
+from proglog import TqdmProgressBarLogger
+
+#Merging files #Deprecated
+#import moviepy.editor as moviepy 
+#import subprocess
 
 
 class PrintLogger(): # create file like object
@@ -30,7 +32,6 @@ class PrintLogger(): # create file like object
     def flush(self): # needed for file like object
         pass
 
-from proglog import TqdmProgressBarLogger
 
 class MyBarLogger(TqdmProgressBarLogger):
     percentage = 0
@@ -66,6 +67,7 @@ class DownloadGUI():
     numb_bars = 0
     def __init__(self,root:tk.Misc = None,stream_objects:list=[object,object],will_concate:bool = False):
         # Make the GUI
+        print("Starting gui")
         if not root == None:
             self.size_scale = size_scale = root.size_scale
             self.root = tk.Toplevel(root)
@@ -370,7 +372,8 @@ class DownloadThread(threading.Thread):
         self.is_paused = self.is_cancelled = False
 
         self.ui = ui
-        self.package = (stream,is_audio)
+        self.stream = stream
+        self.is_audio = is_audio
         print("Starting download_thread")
 
         #self.ui.root.protocol("WM_DELETE_WINDOW", self.pause_thread)
@@ -389,7 +392,7 @@ class DownloadThread(threading.Thread):
 
 
     def run(self):
-        stream_object,isaudio = self.package
+        stream_object,isaudio = self.stream,self.is_audio
         
         self.is_paused = self.is_cancelled = False
         
@@ -534,59 +537,5 @@ class DownloadThread(threading.Thread):
             print("An exeption was made with the error:",error)
 
 if __name__ == "__main__":
-    """ from pytube import YouTube
-    from os.path import dirname, exists
-    from os import makedirs, listdir
-    link = "dQw4w9WgXcQ"
-    video_type_res = []
-    audio_type_quality = []
-    video_attributes = []
-    audio_attributes = []
-    yt_obj = None
-
-
-    def submit_link(event=None):
-        global yt_obj,link
-        def placeholder(*a,**kw):
-            print("hi")
-        
-        def getYtObject():
-            print("uoahfiueiuf")
-            
-            ny_link = "youtube.com/watch?v=" + link
-
-
-            print("WHYYY")
-            yt = YouTube(ny_link,on_progress_callback=placeholder,on_complete_callback=placeholder)
-            print("yptube",yt)
-            streams=yt.streams
-            try:
-                pass
-
-            except Exception as error:
-                print("feil")
-
-            return yt,streams
-        
-        yt_obj,yt_streams = getYtObject()
-        
-
-
-    def initDownload(yt:object,video_stream_no:int=None, audio_stream_no:int=None,will_concate:bool = False):
-        directory = dirname(__file__)+"\\"
-
-        if not exists(directory+"Downloads"):
-            makedirs(directory+"Downloads")
-
-        directory = directory + "Downloads\\"
-        i = 0
-        for file in listdir(directory):
-            if exists(directory+file):
-                i+=1
-        
-        prefix = "" if i == 0 else "("+str(i)+") "
-        print("init",yt," directory:",directory, " file", prefix)
-        DownloadGUI(None,(yt,video_stream_no,audio_stream_no,directory,prefix),will_concate).run()
-
-    submit_link()
-    initDownload(yt_obj,17,None,False) """
+    from VideoDownload import MainWindow
+    MainWindow().mainloop()
