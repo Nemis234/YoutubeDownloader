@@ -2,28 +2,29 @@
 from pytube import YouTube
 #Pathing
 from os.path import dirname,exists
-from os import makedirs,listdir
+from os import makedirs #,listdir #Deprecated
 #Tkinter
 import tkinter as tk
-import tkinter.ttk as ttk
+#import tkinter.ttk as ttk #Deprecated
 from tkinter.font import Font as tkFont
 from tkinter import messagebox
-#Multiprocessing
+#Processing
 import multiprocess #Alternate to multiprocessing
 import threading
 #Images
-import requests
+#import requests #Deprecated
 from PIL import Image,ImageTk
+import urllib
+import io
 #Error handeling
 from pytube import exceptions
 from urllib.error import URLError
+import http.client as httplib #Cheks for internet connection
 #Other
 from collections import defaultdict 
-import http.client as httplib #Cheks for internet connection
+
 #Download GUI
 from DownloadGUI import DownloadGUI
-
-
 
 
 class NoLink(Exception):
@@ -118,8 +119,9 @@ class Size(tuple):
     def __init__(self) -> None:
         super().__init__()
 
-class Stream():
-    def __init__(self,yt:object,number:int, type:str|str="video", filename:str=None, prefix:str=None, postfix:str=None) -> None:
+class Stream:
+    def __init__(self,yt:object,number:int, type:str="video", 
+                 filename:str=None, prefix:str=None, postfix:str=None) -> None:
         self.yt = yt
         self.type = type
         self.number = number
@@ -163,11 +165,51 @@ class Stream():
         
         return name
 
+class WebImage:
+    def __init__(self, url:str,size:tuple[int,int]):
+        self.size = size
+        self.url = url
+        self._orig_img = None
+        self._image = None
+        self.tkImage = None
+        self.set_img(url)
+        self.resize(size)
+
+    def get_tkImage(self):
+        """Returns an ImageTk.PhotoImage object"""
+        self.tkImage = tkImage = ImageTk.PhotoImage(self._image)
+        return self.tkImage
+    
+    def set_img(self,url):
+        """In-place function, no return value"""
+        with urllib.request.urlopen(url) as u:
+            raw_data = u.read()
+        img = Image.open(io.BytesIO(raw_data))
+        self._image=self._orig_img = img
+        
+    
+    def resize(self,size:tuple[int,int]=None,use_previous:bool=False):
+        """In-place function, if no arguments are passed,
+          returns current size"""
+        img = self._orig_img
+        if img == None:
+            raise TypeError
+        
+        if not use_previous:
+            self.size = size
+            if not size:
+                return self.size
+        else:
+            size = self.size
+        
+        self._image = img.resize(size)
+
+
 class MainWindow(tk.Tk):
     button_color = "#7b7b7b"
     size_scale = 1
     
-    def __init__(self, size:tuple=(450,280),size_scale: float=1.5) -> None:
+    def __init__(self, size:tuple=(640,360),size_scale: float=1) -> tk.Tk:
         #Init all variables
         self.video_type_options = list()
         self.audio_type_quality = list()
@@ -191,16 +233,9 @@ class MainWindow(tk.Tk):
         self.audio_attributes = defaultdict(list)
 
         self.focusedout = False
+        self.window_configure_count = 0
 
-        def raise_toplevel_windows(event=None):
-            if event == "<FocusIn>" and self.focusedout:
-                self.focusedout = False
-                for window in self.winfo_children():
-                    if isinstance(window, tk.Toplevel):
-                        window.lift()
-            if event == "<FocusOutn>":
-                self.focusedout = True
-        
+
         def submit_link(event=None):
             yt_streams, yt, link = None,None,None
             def placeholder(*a,**kw):
@@ -225,13 +260,11 @@ class MainWindow(tk.Tk):
                     raise NoLink
 
                 try:
-                    print("Getting yt object")
                     if not self.have_internet():
                         raise NoConnection
 
                     yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder)
                     streams = yt.streams
-                    print("yt object aquired")
                 
                 except exceptions.RegexMatchError:
                     raise NoLink
@@ -259,7 +292,6 @@ class MainWindow(tk.Tk):
                     if not yt_link_bundle:
                         messagebox.showwarning("Unknown error",f"An unknown error has occured\n Please try again")
                         raise Exception
-                    print("using")
                     self.yt,self.streams,self.link = yt,yt_streams,link = yt_link_bundle
                 
                 except NoLink:
@@ -277,7 +309,6 @@ class MainWindow(tk.Tk):
             else:
                 yt_streams = self.streams
             streams = []
-            #[print(x) for x in yt_stream]
             if yt_streams == None or yt==None:
                 return
             
@@ -323,13 +354,11 @@ class MainWindow(tk.Tk):
             if not self.have_internet():
                 messagebox.showerror("No connection","No connection to YouTube found\nTry again later")
                 return
-            
-            thumbnail_url = self.yt.thumbnail_url
-            thumbnail_image = Image.open(requests.get(thumbnail_url, stream=True).raw)
-            thumbnail_image.thumbnail(image_size)
-
-            thumbnail_photo = ImageTk.PhotoImage(thumbnail_image,master=self)
-            width,height = thumbnail_photo.width(),thumbnail_photo.height()
+            url = self.link
+            imgUrl = f"https://img.youtube.com/vi/{url[url.find('watch?v=')+8:]}/maxresdefault.jpg"
+            self.thumbnail_obj.set_img(imgUrl)
+            self.thumbnail_obj.resize()
+            thumbnail_photo = self.thumbnail_obj.get_tkImage()
 
             thumbnail_label.config(image=thumbnail_photo)
             thumbnail_label.image = thumbnail_photo
@@ -369,7 +398,6 @@ class MainWindow(tk.Tk):
             video_value = video_value + ["None"] if self.audio_bool else video_value
             dropdown_vid_res.update_options(video_value)
         
-
         def start_download(event=None):
             vid_type = dropdown_type.get()
             vid_qual = dropdown_vid_res.get()
@@ -413,7 +441,6 @@ class MainWindow(tk.Tk):
                     else:
                         will_concate = False
                     
-                    print("numbers=",video_number,audio_number)
                     #return self.initDownload(self.yt,video_number,audio_number,will_concate)
                 if audio_number and not video_number:
                     pass
@@ -423,8 +450,7 @@ class MainWindow(tk.Tk):
                 return -1
             
             return self.initDownload(self.yt,stream_objects,will_concate)
-
-            
+ 
         def onKey(event):
             main_widgets = self.winfo_children()
             iterate_widgets = []
@@ -454,8 +480,6 @@ class MainWindow(tk.Tk):
             main_widgets = iterate_widgets
             focused_widget = self.focus_get()
 
-            print("focus on:",focused_widget)
-
             if event.keysym == "Return":
                 if focused_widget == button:
                     start_download()
@@ -480,62 +504,53 @@ class MainWindow(tk.Tk):
         def onKeyEscape(event):
             self.destroy()
 
-        def destroy_window(event=None):
-            children = multiprocess.active_children()
-
-            if len(children) > 0:
-                yes_no = messagebox.askyesno("Closing","Are you sure you want to end all processes?")
-                if yes_no:
-                    print("Terminating")
-                    for child in multiprocess.active_children():
-                        child.terminate()
-                    self.destroy()
-                return
-            self.destroy()
-        
         self.unbind_all("<Tab>")
         self.unbind_all("<<NextWindow>>")
 
         self.bind('<Return>', onKey)
         self.bind('<Tab>', onKey)
         self.bind('<Escape>', onKeyEscape)
-        self.bind('<FocusIn>', raise_toplevel_windows)
-        self.bind("<FocusOut>", raise_toplevel_windows)
+        self.bind('<FocusIn>', self.raise_toplevel_windows)
+        self.bind("<FocusOut>", self.raise_toplevel_windows)
                 
         self.bind("<F11>", self.toggle_fullscreen)
+        self.bind("<Configure>",self.window_state_changed)
         #self.tk.bind("<Escape>", self.end_fullscreen)
 
         self.title("Download youtube")
         
-        self.protocol('WM_DELETE_WINDOW',destroy_window)
+        self.protocol('WM_DELETE_WINDOW',self.destroy_window)
 
 
         self.grid_columnconfigure(0, weight=1,uniform="fred")
         self.grid_columnconfigure(1, weight=1,uniform="fred")
+
         for i in range(1,5+1):
             pass
             #self.grid_rowconfigure(i,weight=1)
         
         
 
-        paddx = int(round(2 * size_scale,0))
-        paddy = int(round(3 * size_scale,0))
+        paddx = int(round(3))# * size_scale,0))
+        paddy = int(round(4))# * size_scale,0))
 
-        fontSize = int(round(10 * size_scale,0))
+        fontSize = int(round(15))# * size_scale,0))
         font = ("Arial",fontSize)
         
         url = "https://www.youtube.com/watch?v=0IhmkF50VgE"
-        default_font = tkFont(font=font[0],size=fontSize)
+
+        self.default_font = default_font = tkFont(font=font[0],size=fontSize)
+        self.headline_font = headline_font = tkFont(font="Arial",size=int(round(fontSize*1.7,0)))
 
         row = 1
-        label = tk.Label(self, text="YouTube nedlasting", font=("Arial",int(round(fontSize*1.7,0))))
+        label = tk.Label(self, text="YouTube nedlasting", font=headline_font)
         label.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
         
         row = 2
         label = tk.Label(self,text="Videolink eller ID: ", font=default_font)
         label.grid(row=row,column=0,pady=paddy,padx=paddx)
 
-        yt_link_input = tk.Entry(self,font=default_font)
+        yt_link_input = tk.Entry(self,font=default_font, width=20)
         yt_link_input.insert(0,"dQw4w9WgXcQ")#"0IhmkF50VgE")
         yt_link_input.grid(row=row,column=1,pady=paddy,padx=paddx)
 
@@ -563,19 +578,15 @@ class MainWindow(tk.Tk):
 
         frame=tk.Frame(self,highlightbackground="blue", highlightthickness=2)
         
-        image_size = (int(round(192*size_scale,0)), int(round(108*size_scale,0)))
-        
-        youtube = YouTube(url)
-        thumbnail_url = youtube.thumbnail_url
-        thumbnail_image = Image.open(requests.get(thumbnail_url, stream=True).raw).convert("RGBA")
-        thumbnail_image.thumbnail(image_size)
+        image_size = (int(round(192)),int(round(108)))
+        imgUrl = f"https://img.youtube.com/vi/{url[url.find('watch?v=')+8:]}/maxresdefault.jpg"
+        self.thumbnail_obj= WebImage(imgUrl,image_size)
+        tk_thubmnail = self.thumbnail_obj.get_tkImage()
 
-        thumbnail_photo = ImageTk.PhotoImage(thumbnail_image)
-        
-        thumbnail_label = tk.Label(frame)
-        thumbnail_label.config(image=thumbnail_photo)
-        thumbnail_label.pack(anchor="nw",padx=1,pady=1)
-
+        self.thumbnail_label = thumbnail_label = tk.Label(frame,
+                image=tk_thubmnail,highlightbackground="blue")#,width=image_size[0],height=image_size[1])
+        thumbnail_label.image = tk_thubmnail
+        thumbnail_label.pack()#anchor="nw",padx=1,pady=1)
 
         frame2 = tk.Frame(self, highlightbackground="blue")
         
@@ -609,7 +620,6 @@ class MainWindow(tk.Tk):
         dropdown_aud = DropDown(frame2,options_qual,font=default_font)
         dropdown_aud.grid(row=row,column=1,pady=paddy,padx=paddx)
 
-
         frame.grid(row=4,column=1, sticky="n")#,pady=paddy*4)
         frame2.grid(row=4,column=0,columnspan=1)
 
@@ -629,8 +639,7 @@ class MainWindow(tk.Tk):
                 for i in range(len(liste)):
                     if i > 3:
                         liste[i].grid()
-
-        #hide_show_widgets()
+        hide_show_widgets()
 
         yt_link_input.focus_set()
 
@@ -652,7 +661,7 @@ class MainWindow(tk.Tk):
 
             dropdown_vid_res.bind("<Up>", resolution_arrow)
             dropdown_vid_res.bind("<Down>", resolution_arrow)
-
+        
 
     def initPopup(self:object=None, root:tk.Tk = None,wid:str="300x400", focus:bool=False, title: str = "", resizable:bool = False):
         """Lager et tkinter vindu sentrert på skjermen, uansett størrelse. 
@@ -680,7 +689,6 @@ class MainWindow(tk.Tk):
 
         def lossfocus(event):
             """Lukker vinduet hvis brukeren klikker av tkinter-vinduet"""
-            print("focus out")
             if event.widget is tkPopup:
                 w = tkPopup.tk.call('focus')
                 if not w:
@@ -698,6 +706,28 @@ class MainWindow(tk.Tk):
             tkPopup.bind('<FocusOut>', lossfocus)
         return tkPopup
 
+    def raise_toplevel_windows(self,event=None):
+        if event == "<FocusIn>" and self.focusedout:
+            self.focusedout = False
+            for window in self.winfo_children():
+                if isinstance(window, tk.Toplevel):
+                    window.lift()
+        if event == "<FocusOutn>":
+            self.focusedout = True
+
+    def destroy_window(self,event=None):
+        children = multiprocess.active_children()
+
+        if len(children) > 0:
+            yes_no = messagebox.askyesno("Closing","Are you sure you want to end all processes?")
+            if yes_no:
+                print("Terminating")
+                for child in multiprocess.active_children():
+                    child.terminate()
+                self.destroy()
+            return
+        self.destroy()
+    
     def have_internet(self):
         conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)
         try:
@@ -708,18 +738,14 @@ class MainWindow(tk.Tk):
         finally:
             conn.close()
  
-    def retry_setup(self,event=None,size_scale=(1.5)):
+    def retry_setup(self,event=None,size_scale=(1)):
         for widget in self.winfo_children():
             widget.destroy()
         print("Retried")
         self.init_rest(size_scale)
         
         return
-        self.destroy()
-        print(self.size)
-        gu = MainWindow((self.x,self.y),self.size_scale)
-        print("STARTING")
-        gu.mainloop()
+
 
     def toggle_fullscreen(self, event=None):
         if self.state()=='zoomed':
@@ -728,6 +754,57 @@ class MainWindow(tk.Tk):
             self.state('zoomed')
         return
 
+    def window_state_changed(self,event=None):
+        if self.state() == "zoomed" and self.window_configure_count > 0:
+            print("zoomed")
+
+            self.window_configure_count = 0
+        if self.state() == "normal" and self.window_configure_count < 1:
+            print("Normal")
+            #print(self.geometry())
+            self.geometry(self.size)
+
+            self.window_configure_count = 1
+        
+        i = 10/3
+        w = self.winfo_width()
+        h = self.winfo_height()
+        k = 1 + min(w, h) / 100 
+        size = (int(192/3),int(108/3))
+        self.resize_text(i,k)
+        self.resize_img(size,k)
+
+        #print(self.thumbnail_label.image.)
+        return
+        """ for child in self.winfo_children():
+            #print(child)
+            #print(childe.winfo_class())
+            if any(child.winfo_class() == x for x in ["Label","Entry"]): 
+                #print(child)
+                if child.winfo_class() == "Entry":
+                    print(child)
+                
+                child['font'] = ('Calibri', i) """
+
+    def resize_text(self,i,k):
+        i = int(i*k)
+        if i == self.default_font.config()["size"]:
+            return
+        self.default_font.config(size=i)
+        self.headline_font.config(size=int(round(i*1.7,0)))
+
+    def resize_img(self,size,k):
+        width, height = size
+        new_size = (int(width*k),int(height*k))
+        if self.thumbnail_obj.size == new_size:
+            return
+        thumb_size = new_size
+        self.thumbnail_obj.resize(thumb_size)
+
+        thumbnail_photo = self.thumbnail_obj.get_tkImage()
+
+        self.thumbnail_label.config(image=thumbnail_photo)
+        self.thumbnail_label.image = thumbnail_photo
 
     def initDownload(self,yt:object,stream_objects:list,will_concate:bool = False):
         directory = dirname(__file__)+"\\"
@@ -746,19 +823,15 @@ class MainWindow(tk.Tk):
         
         print(f"Starting download, numbers :{stream_objects}")
 
-        threading.Thread(target=run_download,args=(None,stream_objects,will_concate)).start()
-        """ new_process = multiprocess.Process(target=run_download,args=(None,stream_objects,will_concate))
-        new_process.start() """
+        #Deprecated #threading.Thread(target=run_download,args=(None,stream_objects,will_concate)).start()
+        new_process = multiprocess.Process(target=run_download,args=(None,stream_objects,will_concate))
+        new_process.start()
 
 def run_download(root:tk.Tk=None,stream_objects:Stream=None,will_concate:bool=None):
-    print("starting")
-    DownloadGUI(root ,stream_objects,will_concate)
-    
+    DownloadGUI(root,stream_objects,will_concate)
+
 if __name__ == "__main__":
-    width = 450
-    height = 280
-    scale = 1.5
-    gu = MainWindow((width,height),scale)
+    gu = MainWindow()
     print("STARTING")
     gu.mainloop()
     "https://www.youtube.com/watch?v=PAI9NIbNgk4"
