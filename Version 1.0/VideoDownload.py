@@ -1,5 +1,5 @@
 #Youtube downloader
-from pytube import YouTube
+from pytube import YouTube, request
 #Pathing
 from os.path import dirname,exists
 from os import makedirs #,listdir #Deprecated
@@ -7,7 +7,7 @@ from os import makedirs #,listdir #Deprecated
 import tkinter as tk
 #import tkinter.ttk as ttk #Deprecated
 from tkinter.font import Font as tkFont
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 #Processing
 import multiprocess #Alternate to multiprocessing
 import threading
@@ -226,7 +226,7 @@ class MainWindow(tk.Tk):
 
     def init_rest(self,size_scale):
         self.yt = None
-        self.link = None
+        self.link = ""
         self.streams = None
 
         self.video_attributes = defaultdict(list)
@@ -286,7 +286,7 @@ class MainWindow(tk.Tk):
 
                 return yt,streams,link
             
-            if self.link == None or not self.link.split("?v=")[-1] == yt_link_input.get().split("?v=")[-1]:
+            if not self.link or not self.link.split("?v=")[-1] == yt_link_input.get().split("?v=")[-1]:
                 try:
                     yt_link_bundle = getYtObject()
                     if not yt_link_bundle:
@@ -337,7 +337,7 @@ class MainWindow(tk.Tk):
 
             audio_streams = [x for x in streams if x[1][0] == "audio"]
             self.audio_type_quality = audio_type_quality = [(x[0],x[1][1],x[3]) for x in audio_streams]
-
+            
             for number, types,res in video_type_res:
                 self.video_attributes[types].append(res)
             for number,types,quality in audio_type_quality:
@@ -381,7 +381,7 @@ class MainWindow(tk.Tk):
                 self.audio_bool = True
 
                 audio_value = self.audio_attributes[key]
-                numbers = [int("".join(x for x in hallo if x.isdigit())) for hallo in audio_value]
+                numbers = [int("".join(x for x in hallo if x.isdigit())) for hallo in audio_value if hallo != None]
                 numbers = list(dict.fromkeys(numbers))
                 numbers.sort(reverse=True)
                 audio_value = [str(x)+"kbps" for x in numbers]+["None"]
@@ -390,7 +390,7 @@ class MainWindow(tk.Tk):
                 dropdown_aud.grid()
                 label_qual.grid()
 
-            numbers = [int("".join(x for x in hallo if x.isdigit())) for hallo in video_value]
+            numbers = [int("".join(x for x in hallo if x.isdigit())) for hallo in video_value if hallo != None]
             numbers = list(dict.fromkeys(numbers))
             numbers.sort(reverse=True)
 
@@ -449,7 +449,7 @@ class MainWindow(tk.Tk):
             if len(stream_objects) == 0:
                 return -1
             
-            return self.initDownload(self.yt,stream_objects,will_concate)
+            return self.initDownload(self.yt,stream_objects,will_concate,self.path)
  
         def onKey(event):
             main_widgets = self.winfo_children()
@@ -541,6 +541,7 @@ class MainWindow(tk.Tk):
 
         self.default_font = default_font = tkFont(font=font[0],size=fontSize)
         self.headline_font = headline_font = tkFont(font="Arial",size=int(round(fontSize*1.7,0)))
+        self.path_font = path_font = tkFont(font=font[0],size=int(round(fontSize*0.7,0)))
 
         row = 1
         label = tk.Label(self, text="YouTube nedlasting", font=headline_font)
@@ -624,8 +625,33 @@ class MainWindow(tk.Tk):
         frame2.grid(row=4,column=0,columnspan=1)
 
         button = tk.Button(self, text="Submit", command=start_download, bg=MainWindow.button_color,font=default_font)
-        button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=2)
+        button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=1)
 
+        directory = dirname(__file__)+"\\"
+
+        if not exists(directory+"Downloads"):
+            makedirs(directory+"Downloads")
+
+        self.path = path = directory + "Downloads\\"
+
+        def change_path():
+            path = filedialog.askdirectory()
+            if path:
+                self.path = path
+                path_entry.config(state="normal")
+                path_entry.delete(0, tk.END)  # Empty the path_entry
+                path_entry.insert(0, path)
+                path_entry.config(state="readonly")
+            return
+
+        path_button = tk.Button(self, text="Change path", command=change_path, bg=MainWindow.button_color,font=default_font)
+        path_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=2)
+        
+        path_entry = tk.Entry(self,font=path_font, width=60)
+        path_entry.insert(0,path)#"0IhmkF50VgE")
+        path_entry.config(state="readonly")
+        
+        path_entry.grid(row=6,column=0,pady=paddy,padx=paddx, columnspan=2)
 
 
         def hide_show_widgets(hide=True):
@@ -806,19 +832,26 @@ class MainWindow(tk.Tk):
         self.thumbnail_label.config(image=thumbnail_photo)
         self.thumbnail_label.image = thumbnail_photo
 
-    def initDownload(self,yt:object,stream_objects:list,will_concate:bool = False):
-        directory = dirname(__file__)+"\\"
+    def initDownload(self,yt:object,stream_objects:list[Stream],will_concate:bool = False,path:str=""):
+        
+        if not path:
+            directory = dirname(__file__)+"\\"
 
-        if not exists(directory+"Downloads"):
-            makedirs(directory+"Downloads")
+            if not exists(directory+"Downloads"):
+                makedirs(directory+"Downloads")
 
-        directory = directory + "Downloads\\"
+            directory = directory + "Downloads\\"
+        else:
+            directory = path + "\\"
+        
         for stream in stream_objects:
             stream.set_directory(directory)
+        print(directory)
+        print(stream_objects[0].directory)
         
         if not self.have_internet():
             if messagebox.askretrycancel("No connection","No connection to YouTube found\nTry again later"):
-                return self.initDownload(yt,stream_objects,will_concate)
+                return self.initDownload(yt,stream_objects,will_concate,directory)
             return
         
         print(f"Starting download, numbers :{stream_objects}")
@@ -826,6 +859,8 @@ class MainWindow(tk.Tk):
         #Deprecated #threading.Thread(target=run_download,args=(None,stream_objects,will_concate)).start()
         new_process = multiprocess.Process(target=run_download,args=(None,stream_objects,will_concate))
         new_process.start()
+
+
 
 def run_download(root:tk.Tk=None,stream_objects:Stream=None,will_concate:bool=None):
     DownloadGUI(root,stream_objects,will_concate)
