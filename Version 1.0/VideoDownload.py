@@ -26,6 +26,68 @@ from collections import defaultdict
 #Download GUI
 from DownloadGUI import DownloadGUI
 
+#Oauth
+from pytube.innertube import _cache_dir,_token_file,_client_id,_client_secret
+import os,json,time
+
+def cache_tokens(access_token, refresh_token, expires):
+    """Cache an OAuth token. Modified method from pytube"""
+    data = {
+        'access_token': access_token,
+        'refresh_token': refresh_token,
+        'expires': expires
+    }
+
+    if not os.path.exists(_cache_dir):
+        os.mkdir(_cache_dir)
+    with open(_token_file, 'w') as f:
+        json.dump(data, f)
+
+def fetch_bearer_token():
+    """Fetch an OAuth token. Modified method from pytube"""
+    print('Fetching OAuth2 access token...')
+    # Subtracting 30 seconds is arbitrary to avoid potential time discrepencies
+    start_time = int(time.time() - 30)
+    data = {
+        'client_id': _client_id,
+        'scope': 'https://www.googleapis.com/auth/youtube'
+    }
+    response = request._execute_request(
+        'https://oauth2.googleapis.com/device/code',
+        'POST',
+        headers={
+            'Content-Type': 'application/json'
+        },
+        data=data
+    )
+    response_data = json.loads(response.read())
+    verification_url = response_data['verification_url']
+    user_code = response_data['user_code']
+    print(f'Please open {verification_url} and input code {user_code}')
+    input('Press enter when you have completed this step.')
+
+    data = {
+        'client_id': _client_id,
+        'client_secret': _client_secret,
+        'device_code': response_data['device_code'],
+        'grant_type': 'urn:ietf:params:oauth:grant-type:device_code'
+    }
+    response = request._execute_request(
+        'https://oauth2.googleapis.com/token',
+        'POST',
+        headers={
+            'Content-Type': 'application/json'
+        },
+        data=data
+    )
+    response_data = json.loads(response.read())
+
+    access_token = response_data['access_token']
+    refresh_token = response_data['refresh_token']
+    expires = start_time + response_data['expires_in']
+    cache_tokens(access_token=access_token, refresh_token=refresh_token, expires=expires)
+    print('OAuth2 token fetched and cached.')
+
 
 class NoLink(Exception):
     def __init__(self) -> None:
@@ -258,12 +320,22 @@ class MainWindow(tk.Tk):
                 except TypeError as error:
                     self.running_tasks -= 1
                     raise NoLink
-
+                try:
+                    if os.path.exists(_token_file):
+                        with open(_token_file) as f:
+                            data = json.load(f)
+                            access_token = data['access_token']
+                    if not access_token:
+                        fetch_bearer_token()
+                except:
+                    print("Failed to fetch token")
+                
                 try:
                     if not self.have_internet():
                         raise NoConnection
 
-                    yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder)
+                    yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,
+                                 use_oauth=True, allow_oauth_cache=True)
                     streams = yt.streams
                 
                 except exceptions.RegexMatchError:
