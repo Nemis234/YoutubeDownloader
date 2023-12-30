@@ -329,6 +329,7 @@ class WindowLayout(tk.Frame):
             video_value = [str(x)+"p" for x in numbers]
             video_value = video_value + ["None"] if root.audio_bool else video_value
             dropdown_vid_res.update_options(video_value)
+            
             if len(video_value) > 1:
                 dropdown_vid_res.config(state="normal")
             else:
@@ -603,7 +604,6 @@ class MainWindow(tk.Tk):
             except Exception as e:
                 messagebox.showwarning("Unknown error",f"An unknown error has occured:\n{e}")
                 raise Exception
-
             
             streams=yt.streams
 
@@ -699,6 +699,7 @@ class MainWindow(tk.Tk):
         audio_number = video_number = will_concate = False
 
         dictionary = self.video_type_res
+
 
         if all(item == "None" for item in [vid_qual,aud_qual]):
             return messagebox.showerror("Option-error","No option selected\nSelect an option to proceed")
@@ -799,8 +800,10 @@ class MainWindow(tk.Tk):
         center(tkPopup)
         if focus:
             tkPopup.bind('<FocusOut>', lossfocus)
+
         if root == None:
             return tkPopup
+
         return tkPopup
 
     def raise_toplevel_windows(self,event=None):
