@@ -135,7 +135,6 @@ class DropDown(tk.OptionMenu):
             menu = parent.nametowidget(self.menuname)  # Get menu widget.
             menu.config(font=font)  # Set the dropdown menu's font
 
-
         self.callback = None
 
     def add_callback(self, callback: callable):
@@ -146,7 +145,7 @@ class DropDown(tk.OptionMenu):
         :return: 
         """
         def internal_callback(*args):
-            callback()
+            callback(args)
 
         self.var.trace("w", internal_callback)
 
@@ -244,9 +243,17 @@ class WebImage:
     
     def set_img(self,url):
         """In-place function, no return value"""
-        with urllib.request.urlopen(url) as u:
-            raw_data = u.read()
-        img = Image.open(io.BytesIO(raw_data))
+        try:
+            with urllib.request.urlopen(url) as u:
+                raw_data = u.read()
+            img = Image.open(io.BytesIO(raw_data))
+        except URLError:
+            print("whoops")
+            defaultThumbnail = dirname(__file__)+"\\defaultThumbnail.jpg"
+            with open(defaultThumbnail,"rb") as f:
+                img = Image.open(io.BytesIO(f.read()))
+                
+
         self._image=self._orig_img = img
         
     
@@ -267,342 +274,14 @@ class WebImage:
         self._image = img.resize(size)
 
 
-class MainWindow(tk.Tk):
-    button_color = "#7b7b7b"
-    size_scale = 1
-    
-    def __init__(self, size:tuple=(640,360),size_scale: float=1) -> tk.Tk:
-        #Init all variables
-        self.video_type_options = list()
-        self.audio_type_quality = list()
-        self.video_type_res = list()
-
-        self.x,self.y=x,y = size
-        self.size = size_str = f"{int(round(x*size_scale,0))}x{int(round(y*size_scale,0))}"
-        MainWindow.size_scale = size_scale
-
-        tk.Tk.__init__(self)
-        self.init_rest(size_scale)
-        self = self.initPopup(self,size_str,focus=False, resizable=True)
-
-
-    def init_rest(self,size_scale):
-        self.yt = None
-        self.link = ""
-        self.streams = None
-
-        self.video_attributes = defaultdict(list)
-        self.audio_attributes = defaultdict(list)
-
-        self.focusedout = False
-        self.window_configure_count = 0
-
-
-        def submit_link(event=None):
-            yt_streams, yt, link = None,None,None
-            def placeholder(*a,**kw):
-                print("hi")
-            
-            def getYtObject():
-                link = yt_link_input.get()
-
-                if link.lower() == "placeholder":
-                    self.running_tasks -= 1
-                    raise NoLink
-                
-                valid = ["youtube.com/watch?v=",
-                         "youtube.com/embed/",
-                         "youtu.be/"]
-                
-                try:
-                    if not any([(True if x in link else False) for x in valid]):
-                        link = "youtube.com/watch?v=" + link 
-                except TypeError as error:
-                    self.running_tasks -= 1
-                    raise NoLink
-                try:
-                    if os.path.exists(_token_file):
-                        with open(_token_file) as f:
-                            data = json.load(f)
-                            access_token = data['access_token']
-                    if not access_token:
-                        fetch_bearer_token()
-                except:
-                    print("Failed to fetch token")
-                
-                try:
-                    if not self.have_internet():
-                        raise NoConnection
-
-                    yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,
-                                 use_oauth=True, allow_oauth_cache=True)
-                    streams = yt.streams
-                
-                except exceptions.RegexMatchError:
-                    raise NoLink
-                except exceptions.AgeRestrictedError:
-                    messagebox.showwarning("Agerestricted","This video is age restricted\nDownload unavailable")
-                    raise Exception
-                except exceptions.VideoUnavailable as e:
-                    messagebox.showwarning("Video unavailable",e.error_string())
-                    raise Exception
-                except URLError as e:
-                    messagebox.showwarning("Network error",f"A network error has occured with the following exception:\n{e}")
-                    raise Exception
-                except Exception as e:
-                    messagebox.showwarning("Unknown error",f"An uncatched error has occured:\n{e}")
-                    raise Exception
-
-                
-                streams=yt.streams
-
-                return yt,streams,link
-            
-            if not self.link or not self.link.split("?v=")[-1] == yt_link_input.get().split("?v=")[-1]:
-                try:
-                    yt_link_bundle = getYtObject()
-                    if not yt_link_bundle:
-                        messagebox.showwarning("Unknown error",f"An unknown error has occured\n Please try again")
-                        raise Exception
-                    self.yt,self.streams,self.link = yt,yt_streams,link = yt_link_bundle
-                
-                except NoLink:
-                    messagebox.showwarning("Invalid input","Invalid link submited\nPlease try again")
-                    self.running_tasks -= 1
-                    return
-                except NoConnection:
-                    messagebox.showerror("No connection","No connection to YouTube found\nTry again later")
-                    self.running_tasks -= 1
-                    return
-                except Exception:
-                    self.running_tasks -= 1
-                    return
-                
-            else:
-                yt_streams = self.streams
-            streams = []
-            if yt_streams == None or yt==None:
-                return
-            
-            for x in yt_streams:
-                single_stream = []
-
-                try:
-                    single_stream.append(x.itag)
-                except: single_stream.append(None)
-                try:
-                    single_stream.append(tuple(x.mime_type.split("/")))
-                except: single_stream.append(None)
-                try:
-                    single_stream.append(x.resolution)
-                except: single_stream.append(None)
-                try:
-                    single_stream.append(x.abr)
-                except: single_stream.append(None)
-                """ try:
-                    hei.append(x.acodec)
-                except: hei.append(None) """
-                streams.append(single_stream)
-            video_streams = [x for x in streams if x[1][0] == "video"]
-                                                #Stream_number file_type video_quality audio_quality, only video         Video with audio
-            self.video_type_res = video_type_res = [(x[0]      ,x[1][1],   x[2]) if       x[3] ==    None else (x[0],f"{x[1][1]} (w/audio)",x[2]) for x in video_streams]
-
-            audio_streams = [x for x in streams if x[1][0] == "audio"]
-            self.audio_type_quality = audio_type_quality = [(x[0],x[1][1],x[3]) for x in audio_streams]
-            
-            for number, types,res in video_type_res:
-                self.video_attributes[types].append(res)
-            for number,types,quality in audio_type_quality:
-                self.audio_attributes[types].append(quality)
-
-            self.audio_attributes = dict(self.audio_attributes)
-
-            self.video_attributes = video_attributes = dict(self.video_attributes)            
-
-            video_type_options = list(video_attributes.keys())
-            video_type_options.sort()
-            dropdown_type.update_options(video_type_options)
-            
-            if not self.have_internet():
-                messagebox.showerror("No connection","No connection to YouTube found\nTry again later")
-                return
-            url = self.link
-            imgUrl = f"https://img.youtube.com/vi/{url[url.find('watch?v=')+8:]}/maxresdefault.jpg"
-            self.thumbnail_obj.set_img(imgUrl)
-            self.thumbnail_obj.resize()
-            thumbnail_photo = self.thumbnail_obj.get_tkImage()
-
-            thumbnail_label.config(image=thumbnail_photo)
-            thumbnail_label.image = thumbnail_photo
-
-            hide_show_widgets(False)
-            
-            self.running_tasks -= 1
-            return 
-
-        def type_dropdown_func(event=None):
-            key = dropdown_type.get()
-            video_value = self.video_attributes[key]
-
-            dropdown_aud.grid_remove()
-            label_qual.grid_remove()
-
-            self.audio_bool = False
-
-            if key in list(self.audio_attributes.keys()):
-                self.audio_bool = True
-
-                audio_value = self.audio_attributes[key]
-                numbers = [int("".join(x for x in hallo if x.isdigit())) for hallo in audio_value if hallo != None]
-                numbers = list(dict.fromkeys(numbers))
-                numbers.sort(reverse=True)
-                audio_value = [str(x)+"kbps" for x in numbers]+["None"]
-                dropdown_aud.update_options(audio_value)
-
-                dropdown_aud.grid()
-                label_qual.grid()
-
-            numbers = [int("".join(x for x in hallo if x.isdigit())) for hallo in video_value if hallo != None]
-            numbers = list(dict.fromkeys(numbers))
-            numbers.sort(reverse=True)
-
-            video_value = [str(x)+"p" for x in numbers]
-            video_value = video_value + ["None"] if self.audio_bool else video_value
-            dropdown_vid_res.update_options(video_value)
-        
-        def start_download(event=None):
-            vid_type = dropdown_type.get()
-            vid_qual = dropdown_vid_res.get()
-            aud_qual = dropdown_aud.get()
-
-            audio_number = video_number = will_concate = False
-
-            dictionary = self.video_type_res
-
-            if all(item == "None" for item in [vid_qual,aud_qual]):
-                return messagebox.showerror("Option-error","No option selected\nSelect an option to proceed")
-
-            yt = self.yt
-            filename = yt.streams[0].title
-            invalid = '<>:"/\|?*'
-            filename = "".join([x for x in filename if x not in invalid])
-            stream_objects = []
-
-            if vid_qual != "None":
-                for number,string,quality in dictionary:
-                    if string == vid_type and quality == vid_qual:
-                        video_number = number
-
-                stream_objects.append(Stream(yt,video_number,"video",filename))
-
-            if self.audio_bool and aud_qual != "None":
-                dictionary = self.audio_type_quality
-
-                for number,string,quality in dictionary:
-                    if string == vid_type and quality == aud_qual:
-                        audio_number = number
-                
-                stream_objects.append(Stream(self.yt,audio_number,"audio","Audio "+filename))
-                
-                pass
-
-                if video_number and audio_number:
-                    if False:
-                        message = messagebox.askquestion("Two files", f"Two file-downloads detected\nDo you want to combine the files?")
-                        will_concate = True if message == "yes" else False
-                    else:
-                        will_concate = False
-                    
-                    #return self.initDownload(self.yt,video_number,audio_number,will_concate)
-                if audio_number and not video_number:
-                    pass
-                    #return self.initDownload(self.yt,audio_stream_no=audio_number)
-            
-            if len(stream_objects) == 0:
-                return -1
-            
-            return self.initDownload(self.yt,stream_objects,will_concate,self.path)
- 
-        def onKey(event):
-            main_widgets = self.winfo_children()
-            iterate_widgets = []
-
-            for widget in main_widgets:
-                if not widget.winfo_ismapped():
-                    continue
-
-                if "!frame" in str(widget):
-                    frame_widgets = widget.winfo_children()
-
-                    if len(frame_widgets) <= 1:
-                        continue
-
-                    for sub_widget in frame_widgets:
-                        if "!label" in str(sub_widget) or not sub_widget.winfo_ismapped():
-                            continue
-                        
-                        iterate_widgets.append(sub_widget)
-                    
-                    continue
-            
-                if any([check in str(widget) for check in ["!label","!frame"]]):
-                    continue
-                iterate_widgets.append(widget)  
-                
-            main_widgets = iterate_widgets
-            focused_widget = self.focus_get()
-
-            if event.keysym == "Return":
-                if focused_widget == button:
-                    start_download()
-                    return
-                if focused_widget == button1:
-                    return submit_link()
-
-            def nextToFocus(focused_widget,liste,event):
-                for i in range(len(liste)):
-                    if focused_widget == liste[i]:
-                        if event.state == 9:
-                            if i == 0:
-                                return -1
-                            return i - 1
-                    
-                        if liste[i] == liste[-1]:
-                            return 0
-                        return i+1
-
-            return main_widgets[nextToFocus(focused_widget,main_widgets,event)].focus_set()
-        
-        def onKeyEscape(event):
-            self.destroy()
-
-        self.unbind_all("<Tab>")
-        self.unbind_all("<<NextWindow>>")
-
-        self.bind('<Return>', onKey)
-        self.bind('<Tab>', onKey)
-        self.bind('<Escape>', onKeyEscape)
-        self.bind('<FocusIn>', self.raise_toplevel_windows)
-        self.bind("<FocusOut>", self.raise_toplevel_windows)
-                
-        self.bind("<F11>", self.toggle_fullscreen)
-        self.bind("<Configure>",self.window_state_changed)
-        #self.tk.bind("<Escape>", self.end_fullscreen)
-
-        self.title("Download youtube")
-        
-        self.protocol('WM_DELETE_WINDOW',self.destroy_window)
-
+class WindowLayout(tk.Frame):
+    def __init__(self,root:tk.Tk) -> tk.Frame:
+        tk.Frame.__init__(self,root)
+        self.root = root
 
         self.grid_columnconfigure(0, weight=1,uniform="fred")
         self.grid_columnconfigure(1, weight=1,uniform="fred")
-
-        for i in range(1,5+1):
-            pass
-            #self.grid_rowconfigure(i,weight=1)
         
-        
-
         paddx = int(round(3))# * size_scale,0))
         paddy = int(round(4))# * size_scale,0))
 
@@ -615,15 +294,56 @@ class MainWindow(tk.Tk):
         self.headline_font = headline_font = tkFont(font="Arial",size=int(round(fontSize*1.7,0)))
         self.path_font = path_font = tkFont(font=font[0],size=int(round(fontSize*0.7,0)))
 
+        self.all_fonts = [default_font,headline_font,path_font]
+        
+        def type_dropdown_func(event=None,root:tk.Tk=None):
+            key = dropdown_type.get()
+            video_value = root.video_attributes[key]
+
+            dropdown_aud.grid_remove()
+            label_qual.grid_remove()
+
+            root.audio_bool = False
+
+            if key in list(root.audio_attributes.keys()):
+                root.audio_bool = True
+
+                audio_value = root.audio_attributes[key]
+                numbers = [int("".join(x for x in hallo if x.isdigit())) for hallo in audio_value if hallo != None]
+                numbers = list(dict.fromkeys(numbers))
+                numbers.sort(reverse=True)
+                audio_value = [str(x)+"kbps" for x in numbers]+["None"]
+                dropdown_aud.update_options(audio_value)
+                if len(audio_value) > 1:
+                    dropdown_aud.config(state="normal")
+                else:
+                    dropdown_aud.config(state="disabled")
+
+                dropdown_aud.grid()
+                label_qual.grid()
+
+            numbers = [int("".join(x for x in hallo if x.isdigit())) for hallo in video_value if hallo != None]
+            numbers = list(dict.fromkeys(numbers))
+            numbers.sort(reverse=True)
+
+            video_value = [str(x)+"p" for x in numbers]
+            video_value = video_value + ["None"] if root.audio_bool else video_value
+            dropdown_vid_res.update_options(video_value)
+            if len(video_value) > 1:
+                dropdown_vid_res.config(state="normal")
+            else:
+                dropdown_vid_res.config(state="disabled")
+    
+
         row = 1
-        label = tk.Label(self, text="YouTube nedlasting", font=headline_font)
-        label.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
+        headline = tk.Label(self, text="YouTube nedlasting", font=headline_font)
+        headline.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
         
         row = 2
-        label = tk.Label(self,text="Videolink eller ID: ", font=default_font)
-        label.grid(row=row,column=0,pady=paddy,padx=paddx)
+        video_label = tk.Label(self,text="Videolink eller ID: ", font=default_font)
+        video_label.grid(row=row,column=0,pady=paddy,padx=paddx)
 
-        yt_link_input = tk.Entry(self,font=default_font, width=20)
+        self.yt_link_input = yt_link_input = root.yt_link_input = tk.Entry(self,font=default_font, width=20)
         yt_link_input.insert(0,"dQw4w9WgXcQ")#"0IhmkF50VgE")
         yt_link_input.grid(row=row,column=1,pady=paddy,padx=paddx)
 
@@ -635,20 +355,12 @@ class MainWindow(tk.Tk):
                 return
             
             self.running_tasks += 1
-            threading.Thread(target=submit_link, args=(None,)).start()
+            threading.Thread(target=root.submit_link, args=(None,self, )).start()
         
-        button1 = tk.Button(self,text="Submit link",command=do_tasks,bg = MainWindow.button_color,font=default_font)
-        button1.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
-
+        self.submit_button = submit_button = tk.Button(self,text="Submit link",bg = MainWindow.button_color,font=default_font)
+        submit_button.config(command=do_tasks)
+        submit_button.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
         
-        if not self.have_internet():
-            if messagebox.askretrycancel("No connection","No connection to YouTube found"):
-                self.retry_setup(size_scale=size_scale)
-            else:
-                self.destroy()
-                return
-            return
-
         frame=tk.Frame(self,highlightbackground="blue", highlightthickness=2)
         
         image_size = (int(round(192)),int(round(108)))
@@ -670,8 +382,8 @@ class MainWindow(tk.Tk):
 
         video_type_options = ["Placeholder"]
 
-        dropdown_type = DropDown(frame2,video_type_options,font=default_font)
-        dropdown_type.add_callback(type_dropdown_func)
+        self.dropdown_type = dropdown_type = DropDown(frame2,video_type_options,font=default_font)
+        dropdown_type.add_callback(lambda event, arg1=root: type_dropdown_func(event, arg1))
         dropdown_type.grid(row=row,column=1,pady=paddy,padx=paddx)
         
 
@@ -681,7 +393,7 @@ class MainWindow(tk.Tk):
 
         options_res = ["720p","480p","360p","240p","144p"]
         
-        dropdown_vid_res = DropDown(frame2,options_res,font=default_font)
+        self.dropdown_vid_res=dropdown_vid_res = DropDown(frame2,options_res,font=default_font)
         dropdown_vid_res.grid(row=row,column=1,pady=paddy,padx=paddx)
 
         row = 3
@@ -690,76 +402,360 @@ class MainWindow(tk.Tk):
 
         options_qual = ["70kbps","160kbps"]
         
-        dropdown_aud = DropDown(frame2,options_qual,font=default_font)
+        self.dropdown_aud = dropdown_aud = DropDown(frame2,options_qual,font=default_font)
         dropdown_aud.grid(row=row,column=1,pady=paddy,padx=paddx)
 
         frame.grid(row=4,column=1, sticky="n")#,pady=paddy*4)
         frame2.grid(row=4,column=0,columnspan=1)
 
-        button = tk.Button(self, text="Submit", command=start_download, bg=MainWindow.button_color,font=default_font)
-        button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=1)
+        self.submit_button = submit_button = tk.Button(self, text="Submit", 
+            command=root.start_download, bg=MainWindow.button_color,font=default_font)
+        submit_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=1)
 
+        path_button = tk.Button(self, text="Change path", 
+            command=lambda event, arg1 = self:root.change_path(event,arg1), 
+                bg=MainWindow.button_color,font=default_font)
+        path_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=2)
+        
+        path_entry = tk.Entry(self,font=path_font, width=60)
+        path_entry.insert(0,root.path)
+        path_entry.config(state="readonly")
+        
+        path_entry.grid(row=6,column=0,pady=paddy,padx=paddx, columnspan=2)
+        yt_link_input.focus_set()
+        root.hide_show_widgets(True,self)
+
+class MainWindow(tk.Tk):
+    button_color = "#7b7b7b"
+    size_scale = 1
+
+    def __init__(self, size:tuple=(1920*40/100,1080*40/100),size_scale: float=1) -> tk.Tk:
+        tk.Tk.__init__(self)
+
+        self.x,self.y=x,y = size
+        self.size = size_str = f"{int(round(x*size_scale,0))}x{int(round(y*size_scale,0))}"
+        MainWindow.size_scale = size_scale
+        
         directory = dirname(__file__)+"\\"
 
         if not exists(directory+"Downloads"):
             makedirs(directory+"Downloads")
 
-        self.path = path = directory + "Downloads\\"
+        self.path = directory + "Downloads\\"
 
-        def change_path():
-            path = filedialog.askdirectory()
-            if path:
-                self.path = path
-                path_entry.config(state="normal")
-                path_entry.delete(0, tk.END)  # Empty the path_entry
-                path_entry.insert(0, path)
-                path_entry.config(state="readonly")
-            return
-
-        path_button = tk.Button(self, text="Change path", command=change_path, bg=MainWindow.button_color,font=default_font)
-        path_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=2)
+        self.layout = layout = WindowLayout(self)
+        layout.pack(fill="both", expand=True)
+        self = self.initPopup(self,size_str,focus=False, resizable=True)
         
-        path_entry = tk.Entry(self,font=path_font, width=60)
-        path_entry.insert(0,path)#"0IhmkF50VgE")
-        path_entry.config(state="readonly")
-        
-        path_entry.grid(row=6,column=0,pady=paddy,padx=paddx, columnspan=2)
+
+        self.unbind_all("<Tab>")
+        self.unbind_all("<<NextWindow>>")
+
+        self.bind('<Return>', lambda event, arg1=layout: self.onKey(event, arg1))
+        self.bind('<Tab>', lambda event, arg1=layout: self.onKey(event, arg1))
+        self.bind('<Escape>', self.destroy_window)
+        self.bind('<FocusIn>', self.raise_toplevel_windows)
+        self.bind("<FocusOut>", self.raise_toplevel_windows)
+                
+        self.bind("<F11>", self.toggle_fullscreen)
+        self.bind("<Configure>",lambda event, arg1=layout: self.window_state_changed(event,arg1))
+
+        self.title("Download youtube")
+        self.protocol('WM_DELETE_WINDOW',self.destroy_window)
 
 
-        def hide_show_widgets(hide=True):
-            liste = self.winfo_children()
+        #Init all variables
+        self.video_type_options = list()
+        self.audio_type_quality = list()
+        self.video_type_res = list()
 
-            if hide:
-                for i in range(len(liste)):
-                    if i > 3:
-                        liste[i].grid_remove()
+        self.yt = None
+        self.link = ""
+        self.streams = None
+
+        self.audio_bool = False
+
+        self.focusedout = False
+        self.window_configure_count = 0
+
+        self.video_attributes = defaultdict(list)
+        self.audio_attributes = defaultdict(list)
+
+        if not self.have_internet(): 
+            if messagebox.askretrycancel("No connection","No connection to YouTube found"):
+                self.retry_setup(None,layout)
             else:
-                for i in range(len(liste)):
-                    if i > 3:
-                        liste[i].grid()
-        hide_show_widgets()
+                self.destroy()
+                return
+    
+    def change_path(self,event=None,frame:tk.Frame=None):
+        path = filedialog.askdirectory()
+        if path:
+            self.path = path
+            frame.path_entry.config(state="normal")
+            frame.path_entry.delete(0, tk.END)  # Empty the path_entry
+            frame.path_entry.insert(0, path)
+            frame.path_entry.config(state="readonly")
+        return
+     
+    def onKey(self,event=None,frame:tk.Frame=None):
+        if not frame:
+            return
+        main_widgets = frame.winfo_children()
+        iterate_widgets = []
 
-        yt_link_input.focus_set()
+        for widget in main_widgets:
+            if not widget.winfo_ismapped():
+                continue
 
-        use_arrows = False
+            if "!frame" in str(widget):
+                frame_widgets = widget.winfo_children()
 
-        if use_arrows:
-            def video_type_arrow(event):
-                change = 1 if event.keysym == "Down" else -1
-                dropdown_type.var.set(self.video_type_options[(self.video_type_options.index(dropdown_type.get()) + change) % len(self.video_type_options)])
-                type_dropdown_func()
+                if len(frame_widgets) <= 1:
+                    continue
 
-            def resolution_arrow(event):
-                change = 1 if event.keysym == "Down" else -1
-                dropdown_vid_res.var.set(options_res[(options_res.index(dropdown_vid_res.get()) + change) % len(options_res)])
-                type_dropdown_func()
-
-            dropdown_type.bind("<Up>", video_type_arrow)
-            dropdown_type.bind("<Down>", video_type_arrow)
-
-            dropdown_vid_res.bind("<Up>", resolution_arrow)
-            dropdown_vid_res.bind("<Down>", resolution_arrow)
+                for sub_widget in frame_widgets:
+                    if "!label" in str(sub_widget) or not sub_widget.winfo_ismapped():
+                        continue
+                    
+                    iterate_widgets.append(sub_widget)
+                
+                continue
         
+            if any([check in str(widget) for check in ["!label","!frame"]]):
+                continue
+            iterate_widgets.append(widget)  
+            
+        main_widgets = iterate_widgets
+        focused_widget = frame.focus_get()
+        print(focused_widget)
+
+        if event.keysym == "Return":
+            for widget in main_widgets:
+                    if widget == focused_widget and "!button" in str(widget):
+                        return widget.invoke()
+
+        def nextToFocus(focused_widget,liste,event):
+            for i in range(len(liste)):
+                if focused_widget == liste[i]:
+                    if event.state == 9:
+                        if i == 0:
+                            return -1
+                        return i - 1
+                
+                    if liste[i] == liste[-1]:
+                        return 0
+                    return i+1
+
+        return main_widgets[nextToFocus(focused_widget,main_widgets,event)].focus_set()
+    
+    def submit_link(self,event=None,frame:tk.Frame=None):
+        yt_streams, yt, link = None,None,None
+        def placeholder(*a,**kw):
+            print("hi")
+        
+        def getYtObject():
+            link = frame.yt_link_input.get()
+
+            if link.lower() == "placeholder":
+                frame.running_tasks -= 1
+                raise NoLink
+            
+            valid = ["youtube.com/watch?v=",
+                        "youtube.com/embed/",
+                        "youtu.be/"]
+            
+            try:
+                if not any([(True if x in link else False) for x in valid]):
+                    link = "youtube.com/watch?v=" + link 
+            except TypeError as error:
+                frame.running_tasks -= 1
+                raise NoLink
+            try:
+                if os.path.exists(_token_file):
+                    with open(_token_file) as f:
+                        data = json.load(f)
+                        access_token = data['access_token']
+                if not access_token:
+                    fetch_bearer_token()
+            except:
+                print("Failed to fetch token")
+            
+            if not self.have_internet():
+                raise NoConnection
+            try:
+
+                yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,
+                                use_oauth=True, allow_oauth_cache=True)
+                streams = yt.streams
+            
+            except exceptions.RegexMatchError:
+                raise NoLink
+            except exceptions.AgeRestrictedError:
+                messagebox.showwarning("Agerestricted","This video is age restricted\nDownload unavailable")
+                raise Exception
+            except exceptions.VideoUnavailable as e:
+                messagebox.showwarning("Video unavailable",e.error_string())
+                raise Exception
+            except URLError as e:
+                messagebox.showwarning("Network error",f"A network error has occured with the following exception:\n{e}")
+                raise Exception
+            except Exception as e:
+                messagebox.showwarning("Unknown error",f"An unknown error has occured:\n{e}")
+                raise Exception
+
+            
+            streams=yt.streams
+
+            return yt,streams,link
+        
+        if not self.link or not self.link.split("?v=")[-1] == frame.yt_link_input.get().split("?v=")[-1]:
+            try:
+                yt_link_bundle = getYtObject()
+                if not yt_link_bundle:
+                    messagebox.showwarning("Unknown error",f"An unknown error has occured\n Please try again")
+                    raise Exception
+                self.yt,self.streams,self.link = yt,yt_streams,link = yt_link_bundle
+            
+            except NoLink:
+                messagebox.showwarning("Invalid input","Invalid link submited\nPlease try again")
+                frame.running_tasks -= 1
+                return
+            except NoConnection:
+                messagebox.showerror("No connection","No connection to YouTube found\nTry again later")
+                frame.running_tasks -= 1
+                return
+            except Exception:
+                frame.running_tasks -= 1
+                return
+            
+        else:
+            yt_streams = self.streams
+        streams = []
+        if yt_streams == None or yt==None:
+            return
+        
+        for x in yt_streams:
+            single_stream = []
+
+            try:
+                single_stream.append(x.itag)
+            except: single_stream.append(None)
+            try:
+                single_stream.append(tuple(x.mime_type.split("/")))
+            except: single_stream.append(None)
+            try:
+                single_stream.append(x.resolution)
+            except: single_stream.append(None)
+            try:
+                single_stream.append(x.abr)
+            except: single_stream.append(None)
+            """ try:
+                hei.append(x.acodec)
+            except: hei.append(None) """
+            streams.append(single_stream)
+        video_streams = [x for x in streams if x[1][0] == "video"]
+                                            #Stream_number file_type video_quality audio_quality, only video         Video with audio
+        self.video_type_res = video_type_res = [(x[0]      ,x[1][1],   x[2]) if       x[3] ==    None else (x[0],f"{x[1][1]} (w/audio)",x[2]) for x in video_streams]
+
+        audio_streams = [x for x in streams if x[1][0] == "audio"]
+        self.audio_type_quality = audio_type_quality = [(x[0],x[1][1],x[3]) for x in audio_streams]
+        
+        for number, types,res in video_type_res:
+            self.video_attributes[types].append(res)
+        for number,types,quality in audio_type_quality:
+            self.audio_attributes[types].append(quality)
+
+        self.audio_attributes = dict(self.audio_attributes)
+
+        self.video_attributes = video_attributes = dict(self.video_attributes)            
+
+        video_type_options = list(video_attributes.keys())
+        video_type_options.sort()
+        frame.dropdown_type.update_options(video_type_options)
+        
+        if not self.have_internet():
+            messagebox.showerror("No connection","No connection to YouTube found\nTry again later")
+            return
+        url = self.link
+        imgUrl = f"https://img.youtube.com/vi/{url[url.find('watch?v=')+8:]}/maxresdefault.jpg"
+        frame.thumbnail_obj.set_img(imgUrl)
+        frame.thumbnail_obj.resize(use_previous=True)
+        thumbnail_photo = frame.thumbnail_obj.get_tkImage()
+        thumbnail_label = frame.thumbnail_label
+        thumbnail_label.config(image=thumbnail_photo)
+        thumbnail_label.image = thumbnail_photo
+
+        self.hide_show_widgets(False,frame)
+        
+        frame.running_tasks -= 1
+        return 
+
+    def start_download(self,event=None,frame:tk.Frame=None):
+        vid_type = frame.dropdown_type.get()
+        vid_qual = frame.dropdown_vid_res.get()
+        aud_qual = frame.dropdown_aud.get()
+
+        audio_number = video_number = will_concate = False
+
+        dictionary = self.video_type_res
+
+        if all(item == "None" for item in [vid_qual,aud_qual]):
+            return messagebox.showerror("Option-error","No option selected\nSelect an option to proceed")
+
+        yt = self.yt
+        filename = yt.streams[0].title
+        invalid = '<>:"/\|?*'
+        filename = "".join([x for x in filename if x not in invalid])
+        stream_objects = []
+
+        if vid_qual != "None":
+            for number,string,quality in dictionary:
+                if string == vid_type and quality == vid_qual:
+                    video_number = number
+
+            stream_objects.append(Stream(yt,video_number,"video",filename))
+
+        if self.audio_bool and aud_qual != "None":
+            dictionary = self.audio_type_quality
+
+            for number,string,quality in dictionary:
+                if string == vid_type and quality == aud_qual:
+                    audio_number = number
+            
+            stream_objects.append(Stream(self.yt,audio_number,"audio","Audio "+filename))
+            
+            pass
+
+            if video_number and audio_number:
+                if False:
+                    message = messagebox.askquestion("Two files", f"Two file-downloads detected\nDo you want to combine the files?")
+                    will_concate = True if message == "yes" else False
+                else:
+                    will_concate = False
+                
+                #return self.initDownload(self.yt,video_number,audio_number,will_concate)
+            if audio_number and not video_number:
+                pass
+                #return self.initDownload(self.yt,audio_stream_no=audio_number)
+        
+        if len(stream_objects) == 0:
+            return -1
+        
+        return self.initDownload(self.yt,stream_objects,will_concate,self.path)
+
+    def hide_show_widgets(self,hide=True,frame:tk.Frame=None):
+        liste = frame.winfo_children()
+
+        if hide:
+            for i in range(len(liste)):
+                if i > 3:
+                    liste[i].grid_remove()
+        else:
+            for i in range(len(liste)):
+                if i > 3:
+                    liste[i].grid()
+
 
     def initPopup(self:object=None, root:tk.Tk = None,wid:str="300x400", focus:bool=False, title: str = "", resizable:bool = False):
         """Lager et tkinter vindu sentrert på skjermen, uansett størrelse. 
@@ -768,7 +764,7 @@ class MainWindow(tk.Tk):
         \n:root: tkinter vinduet som skal bli modifisert, ofte hovedvinduet
         \n:title: tittelen på vinduet"""
 
-        def center(win):
+        def center(win:tk.Tk):
             """
             centers a tkinter window on the monitor
             :param win: the main window or Toplevel window to center
@@ -783,7 +779,7 @@ class MainWindow(tk.Tk):
             x = win.winfo_screenwidth() // 2 - win_width // 2
             y = win.winfo_screenheight() // 2 - win_height // 2
             win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
-            win.deiconify()
+            #win.deiconify()
 
         def lossfocus(event):
             """Lukker vinduet hvis brukeren klikker av tkinter-vinduet"""
@@ -797,11 +793,14 @@ class MainWindow(tk.Tk):
             tkPopup.title(title)
         else:
             tkPopup = root
+            #self = tkPopup
         tkPopup.geometry(wid)
         tkPopup.resizable(resizable,resizable)
         center(tkPopup)
         if focus:
             tkPopup.bind('<FocusOut>', lossfocus)
+        if root == None:
+            return tkPopup
         return tkPopup
 
     def raise_toplevel_windows(self,event=None):
@@ -836,14 +835,25 @@ class MainWindow(tk.Tk):
         finally:
             conn.close()
  
-    def retry_setup(self,event=None,size_scale=(1)):
-        for widget in self.winfo_children():
-            widget.destroy()
-        print("Retried")
-        self.init_rest(size_scale)
-        
-        return
+    def retry_setup(self,event=None,frame:tk.Frame=None):
+        if not frame:
+            return
+        def destroy_widgets(frame):
+            for widget in frame.winfo_children():
+                if "!frame" in str(widget):
+                    destroy_widgets(widget)
+                else:
+                    widget.destroy()
 
+        #destroy_widgets(self)
+        while not self.have_internet(): 
+            if not messagebox.askretrycancel("No connection","No connection to YouTube found"):
+                self.destroy()
+                return
+                
+        #self.layout = WindowLayout(self,self.size_scale)
+        #self.layout.pack()
+        return
 
     def toggle_fullscreen(self, event=None):
         if self.state()=='zoomed':
@@ -852,14 +862,34 @@ class MainWindow(tk.Tk):
             self.state('zoomed')
         return
 
-    def window_state_changed(self,event=None):
-        if self.state() == "zoomed" and self.window_configure_count > 0:
-            print("zoomed")
+    def window_state_changed(self,event=None,frame:tk.Frame=None):
+        def resize_text(i,k):
+            i = int(i*k)
+            if i == frame.default_font.config()["size"]:
+                return
+            
+            for font in frame.all_fonts:
+                font.config(size=i)
+            
+            frame.headline_font.config(size=int(round(i*1.7,0)))
+            frame.path_font.config(size=int(round(i*0.7,0)))
 
+        def resize_img(size,k):
+            width, height = size
+            new_size = (int(width*k),int(height*k))
+            if frame.thumbnail_obj.size == new_size:
+                return
+            thumb_size = new_size
+            frame.thumbnail_obj.resize(thumb_size)
+
+            thumbnail_photo = frame.thumbnail_obj.get_tkImage()
+
+            frame.thumbnail_label.config(image=thumbnail_photo)
+            frame.thumbnail_label.image = thumbnail_photo
+        
+        if self.state() == "zoomed" and self.window_configure_count > 0:
             self.window_configure_count = 0
         if self.state() == "normal" and self.window_configure_count < 1:
-            print("Normal")
-            #print(self.geometry())
             self.geometry(self.size)
 
             self.window_configure_count = 1
@@ -869,40 +899,8 @@ class MainWindow(tk.Tk):
         h = self.winfo_height()
         k = 1 + min(w, h) / 100 
         size = (int(192/3),int(108/3))
-        self.resize_text(i,k)
-        self.resize_img(size,k)
-
-        #print(self.thumbnail_label.image.)
-        return
-        """ for child in self.winfo_children():
-            #print(child)
-            #print(childe.winfo_class())
-            if any(child.winfo_class() == x for x in ["Label","Entry"]): 
-                #print(child)
-                if child.winfo_class() == "Entry":
-                    print(child)
-                
-                child['font'] = ('Calibri', i) """
-
-    def resize_text(self,i,k):
-        i = int(i*k)
-        if i == self.default_font.config()["size"]:
-            return
-        self.default_font.config(size=i)
-        self.headline_font.config(size=int(round(i*1.7,0)))
-
-    def resize_img(self,size,k):
-        width, height = size
-        new_size = (int(width*k),int(height*k))
-        if self.thumbnail_obj.size == new_size:
-            return
-        thumb_size = new_size
-        self.thumbnail_obj.resize(thumb_size)
-
-        thumbnail_photo = self.thumbnail_obj.get_tkImage()
-
-        self.thumbnail_label.config(image=thumbnail_photo)
-        self.thumbnail_label.image = thumbnail_photo
+        resize_text(i,k)
+        resize_img(size,k)
 
     def initDownload(self,yt:object,stream_objects:list[Stream],will_concate:bool = False,path:str=""):
         
@@ -931,7 +929,6 @@ class MainWindow(tk.Tk):
         #Deprecated #threading.Thread(target=run_download,args=(None,stream_objects,will_concate)).start()
         new_process = multiprocess.Process(target=run_download,args=(None,stream_objects,will_concate))
         new_process.start()
-
 
 
 def run_download(root:tk.Tk=None,stream_objects:Stream=None,will_concate:bool=None):
