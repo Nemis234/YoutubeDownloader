@@ -6,6 +6,7 @@ from os.path import exists
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import messagebox
+from tkinter.font import Font as tkFont
 #Internet checking and errors
 import http.client as httplib
 from urllib.error import URLError
@@ -65,25 +66,35 @@ class MyBarLogger(TqdmProgressBarLogger):
 
 class DownloadGUI():
     numb_bars = 0
-    def __init__(self,root:tk.Misc = None,stream_objects:list=[object,object],will_concate:bool = False):
+    def __init__(self,root:tk.Misc = None,stream_objects:list=[object,object],
+                 will_concate:bool = False, size_scale:float = 1, button_color:str = "white"):
         # Make the GUI
         print("Starting gui")
-        if not root == None:
+        """ if not root == None:
             self.size_scale = size_scale = root.size_scale
             self.root = tk.Toplevel(root)
             button_color = root.button_color
         else:
             self.size_scale = size_scale = 1
             self.root = tk.Tk()
-            button_color = "white"
-        print("hei der")
+            button_color = "white" """
+        self.size_scale = size_scale if size_scale else 1
+        self.button_color = button_color if button_color else "white"
+        self.root = root if root else tk.Tk()
+
+        print("Size and color: ",size_scale, button_color)
         
         self.root.title()
-        x,y = int(round(210*size_scale,0)),int(round(60*size_scale,0))
-        self.root.geometry(f"{x}x{y}")
+        x,y = int(round(630*size_scale,0)),int(round(180*size_scale,0))
+        self.size = f"{x}x{y}"
+        self.root.geometry(self.size)
 
-        fontSize = int(round(10*size_scale,0))
+
+        fontSize = int(20)
         font = ("Arial",fontSize)
+        self.default_font = default_font = tkFont(font=font[0],size=fontSize)
+
+
 
         self.style = style = ttk.Style(self.root)
         style.layout('text.Horizontal.TProgressbar',
@@ -92,10 +103,10 @@ class DownloadGUI():
                               {'side': 'left', 'sticky': 'ns'})],
                 'sticky': 'nswe'}),
               ('Horizontal.Progressbar.label', {'sticky': ''})])
-        style.configure('text.Horizontal.TProgressbar', text='0 %', font=font)
+        style.configure('text.Horizontal.TProgressbar', text='0 %', font=default_font)
 
         self.percent = 0
-        self.progress = ttk.Progressbar(self.root,style='text.Horizontal.TProgressbar', orient = 'horizontal', length = int(round(200*size_scale,0)), mode = 'determinate', max = 100)
+        self.progress = ttk.Progressbar(self.root,style='text.Horizontal.TProgressbar', orient = 'horizontal', length = int(round(600*size_scale,0)), mode = 'determinate', max = 100)
         DownloadGUI.numb_bars += 1
 
         self.numb = int(float(DownloadGUI.numb_bars))
@@ -129,8 +140,12 @@ class DownloadGUI():
         ## Pack the progress bar in to the GUI
         self.progress.pack()
         message = ("Canceled", "Do you want to cancel all downloads?")
-        button = tk.Button(self.root,text="Cancel",command=lambda: self.exit_window(message=message),bg = button_color,font=font)
+        button = tk.Button(self.root,text="Cancel",command=lambda: self.exit_window(message=message),bg = button_color,font=default_font)
         button.pack()
+
+        self.window_configure_count = 0
+        self.root.bind("<Configure>",self.window_state_changed)
+
 
         self.concate_thread=None
         
@@ -353,11 +368,40 @@ class DownloadGUI():
                 failsafe -= 1
                 time.sleep(0.5)
                     
-
     def destroy_gui(self,event=None):
         DownloadGUI.numb_bars -= 1
         print("Download bars left:", DownloadGUI.numb_bars)
         self.root.destroy()
+
+    def window_state_changed(self,event=None):
+        def resize_text(i,k):
+            i = int(i*k)
+            if i == self.default_font.config()["size"]:
+                return
+            
+            self.default_font.config(size=i)
+        
+        def resize_progress(size,k):
+            
+            if int(round(size*k,0)) == self.progress.config()["length"]:
+                return
+            self.progress.config(length=int(round(size*k,0)))
+
+        if self.root.state() == "zoomed" and self.window_configure_count > 0:
+            self.window_configure_count = 0
+        if self.root.state() == "normal" and self.window_configure_count < 1:
+            self.root.geometry(self.size)
+
+            self.window_configure_count = 1
+        
+        i = 10/3
+        w = self.root.winfo_width()
+        h = self.root.winfo_height()
+        k = 1 + min(w, h) / 25 
+        size = int(round(600/28))
+        
+        resize_text(i,k)
+        resize_progress(size,1+w/25)
 
 
 class DownloadThread(threading.Thread):

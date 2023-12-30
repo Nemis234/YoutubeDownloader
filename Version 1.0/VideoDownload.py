@@ -145,7 +145,7 @@ class DropDown(tk.OptionMenu):
         :return: 
         """
         def internal_callback(*args):
-            callback(args)
+            callback()
 
         self.var.trace("w", internal_callback)
 
@@ -430,7 +430,7 @@ class MainWindow(tk.Tk):
     button_color = "#7b7b7b"
     size_scale = 1
 
-    def __init__(self, size:tuple=(1920*40/100,1080*40/100),size_scale: float=1) -> tk.Tk:
+    def __init__(self, size:tuple=(1920,1080),size_scale: float=0.4) -> tk.Tk:
         tk.Tk.__init__(self)
 
         self.x,self.y=x,y = size
@@ -902,6 +902,7 @@ class MainWindow(tk.Tk):
         h = self.winfo_height()
         k = 1 + min(w, h) / 100 
         size = (int(192/3),int(108/3))
+        
         resize_text(i,k)
         resize_img(size,k)
 
@@ -930,12 +931,12 @@ class MainWindow(tk.Tk):
         print(f"Starting download, numbers :{stream_objects}")
 
         #Deprecated #threading.Thread(target=run_download,args=(None,stream_objects,will_concate)).start()
-        new_process = multiprocess.Process(target=run_download,args=(None,stream_objects,will_concate))
+        new_process = multiprocess.Process(target=run_download,args=(None,stream_objects,will_concate,MainWindow.size_scale,MainWindow.button_color))
         new_process.start()
 
 
-def run_download(root:tk.Tk=None,stream_objects:Stream=None,will_concate:bool=None):
-    DownloadGUI(root,stream_objects,will_concate)
+def run_download(root:tk.Tk=None,stream_objects:Stream=None,will_concate:bool=None,size_scale:float = 1, button_color:str = "white"):
+    DownloadGUI(root,stream_objects,will_concate,size_scale,button_color)
 
 if __name__ == "__main__":
     gu = MainWindow()
