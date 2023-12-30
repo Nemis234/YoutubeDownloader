@@ -551,13 +551,10 @@ class MainWindow(tk.Tk):
                 
             main_widgets = iterate_widgets
             focused_widget = self.focus_get()
-
             if event.keysym == "Return":
-                if focused_widget == button:
-                    start_download()
-                    return
-                if focused_widget == button1:
-                    return submit_link()
+                for widget in main_widgets:
+                    if widget == focused_widget and "!button" in str(widget):
+                        return widget.invoke()
 
             def nextToFocus(focused_widget,liste,event):
                 for i in range(len(liste)):
@@ -738,7 +735,6 @@ class MainWindow(tk.Tk):
                     if i > 3:
                         liste[i].grid()
         hide_show_widgets()
-
         yt_link_input.focus_set()
 
         use_arrows = False
@@ -768,7 +764,7 @@ class MainWindow(tk.Tk):
         \n:root: tkinter vinduet som skal bli modifisert, ofte hovedvinduet
         \n:title: tittelen på vinduet"""
 
-        def center(win):
+        def center(win:tk.Tk):
             """
             centers a tkinter window on the monitor
             :param win: the main window or Toplevel window to center
@@ -783,7 +779,7 @@ class MainWindow(tk.Tk):
             x = win.winfo_screenwidth() // 2 - win_width // 2
             y = win.winfo_screenheight() // 2 - win_height // 2
             win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
-            win.deiconify()
+            #win.deiconify()
 
         def lossfocus(event):
             """Lukker vinduet hvis brukeren klikker av tkinter-vinduet"""
@@ -802,6 +798,7 @@ class MainWindow(tk.Tk):
         center(tkPopup)
         if focus:
             tkPopup.bind('<FocusOut>', lossfocus)
+        
         return tkPopup
 
     def raise_toplevel_windows(self,event=None):
