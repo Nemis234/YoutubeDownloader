@@ -384,7 +384,7 @@ class WindowLayout(tk.Frame):
         video_type_options = ["Placeholder"]
 
         self.dropdown_type = dropdown_type = DropDown(frame2,video_type_options,font=default_font)
-        dropdown_type.add_callback(lambda event, arg1=root: type_dropdown_func(event, arg1))
+        dropdown_type.add_callback(lambda: type_dropdown_func(root=root))
         dropdown_type.grid(row=row,column=1,pady=paddy,padx=paddx)
         
 
@@ -410,11 +410,11 @@ class WindowLayout(tk.Frame):
         frame2.grid(row=4,column=0,columnspan=1)
 
         self.submit_button = submit_button = tk.Button(self, text="Submit", 
-            command=root.start_download, bg=MainWindow.button_color,font=default_font)
+            command= lambda: root.start_download(frame=self), bg=MainWindow.button_color,font=default_font)
         submit_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=1)
 
         path_button = tk.Button(self, text="Change path", 
-            command=lambda event, arg1 = self:root.change_path(event,arg1), 
+            command=lambda: root.change_path(frame=self), 
                 bg=MainWindow.button_color,font=default_font)
         path_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=2)
         
