@@ -300,6 +300,9 @@ class MainWindow(tk.Tk):
 
         def submit_link(event=None):
             yt_streams, yt, link = None,None,None
+            audio_postfix = "built-in audio"
+            video_postfix = "w/o audio"
+
             def placeholder(*a,**kw):
                 print("hi")
             
@@ -405,8 +408,7 @@ class MainWindow(tk.Tk):
                 streams.append(single_stream)
             video_streams = [x for x in streams if x[1][0] == "video"]
                                                 #Stream_number file_type video_quality audio_quality, only video         Video with audio
-            self.video_type_res = video_type_res = [(x[0]      ,x[1][1],   x[2]) if       x[3] ==    None else (x[0],f"{x[1][1]} (w/audio)",x[2]) for x in video_streams]
-
+            self.video_type_res = video_type_res = [(x[0]      ,f"{x[1][1]}",   x[2]) if       x[3] ==    None else (x[0],f"{x[1][1]} {audio_postfix}",x[2]) for x in video_streams]
             audio_streams = [x for x in streams if x[1][0] == "audio"]
             self.audio_type_quality = audio_type_quality = [(x[0],x[1][1],x[3]) for x in audio_streams]
             
@@ -418,7 +420,6 @@ class MainWindow(tk.Tk):
             self.audio_attributes = dict(self.audio_attributes)
 
             self.video_attributes = video_attributes = dict(self.video_attributes)            
-
             video_type_options = list(video_attributes.keys())
             video_type_options.sort()
             dropdown_type.update_options(video_type_options)
@@ -483,6 +484,8 @@ class MainWindow(tk.Tk):
                 return messagebox.showerror("Option-error","No option selected\nSelect an option to proceed")
 
             yt = self.yt
+            if yt == None:
+                return
             filename = yt.streams[0].title
             invalid = '<>:"/\|?*'
             filename = "".join([x for x in filename if x not in invalid])
@@ -594,11 +597,6 @@ class MainWindow(tk.Tk):
         self.grid_columnconfigure(0, weight=1,uniform="fred")
         self.grid_columnconfigure(1, weight=1,uniform="fred")
 
-        for i in range(1,5+1):
-            pass
-            #self.grid_rowconfigure(i,weight=1)
-        
-        
 
         paddx = int(round(3))# * size_scale,0))
         paddy = int(round(4))# * size_scale,0))
@@ -645,34 +643,39 @@ class MainWindow(tk.Tk):
                 self.destroy()
                 return
             return
+        
+        hide_show_frame = tk.Frame(self, highlightbackground="blue", highlightthickness=2)
 
-        frame=tk.Frame(self,highlightbackground="blue", highlightthickness=2)
+        frame_root = self
+
+        image_frame=tk.Frame(frame_root,highlightbackground="blue", highlightthickness=2)
         
         image_size = (int(round(192)),int(round(108)))
         imgUrl = f"https://img.youtube.com/vi/{url[url.find('watch?v=')+8:]}/maxresdefault.jpg"
         self.thumbnail_obj= WebImage(imgUrl,image_size)
         tk_thubmnail = self.thumbnail_obj.get_tkImage()
 
-        self.thumbnail_label = thumbnail_label = tk.Label(frame,
+        self.thumbnail_label = thumbnail_label = tk.Label(image_frame,
                 image=tk_thubmnail,highlightbackground="blue")#,width=image_size[0],height=image_size[1])
         thumbnail_label.image = tk_thubmnail
         thumbnail_label.pack()#anchor="nw",padx=1,pady=1)
 
-        frame2 = tk.Frame(self, highlightbackground="blue")
+        option_frame = tk.Frame(frame_root, highlightbackground="blue", highlightthickness=2)
         
-
         row = 1
-        label = tk.Label(frame2,text="Filformat: ", font=default_font)
+        frame1 = tk.Frame(option_frame)
+        label = tk.Label(frame1,text="Filformat: ", font=default_font)
         label.grid(row=row,column=0,pady=paddy,padx=paddx)
 
         video_type_options = ["Placeholder"]
 
-        dropdown_type = DropDown(frame2,video_type_options,font=default_font)
+        dropdown_type = DropDown(frame1,video_type_options,font=default_font)
         dropdown_type.add_callback(type_dropdown_func)
         dropdown_type.grid(row=row,column=1,pady=paddy,padx=paddx)
-        
+        frame1.grid(row=row,column=0,sticky="W")
 
         row = 2
+        frame2 = tk.Frame(option_frame)
         label_res = tk.Label(frame2,text="Videooppløsning: ", font=default_font)
         label_res.grid(row=row,column=0,pady=paddy,padx=paddx)
 
@@ -681,17 +684,24 @@ class MainWindow(tk.Tk):
         dropdown_vid_res = DropDown(frame2,options_res,font=default_font)
         dropdown_vid_res.grid(row=row,column=1,pady=paddy,padx=paddx)
 
+        frame2.grid(row=row,column=0,sticky="W")
+
         row = 3
-        label_qual = tk.Label(frame2,text="Lydkvalitet: ", font=default_font)
+        frame3 = tk.Frame(option_frame)
+        label_qual = tk.Label(frame3,text="Lydkvalitet: ", font=default_font)
         label_qual.grid(row=row,column=0,pady=paddy,padx=paddx)
 
         options_qual = ["70kbps","160kbps"]
         
-        dropdown_aud = DropDown(frame2,options_qual,font=default_font)
+        dropdown_aud = DropDown(frame3,options_qual,font=default_font)
         dropdown_aud.grid(row=row,column=1,pady=paddy,padx=paddx)
 
-        frame.grid(row=4,column=1, sticky="n")#,pady=paddy*4)
-        frame2.grid(row=4,column=0,columnspan=1)
+        frame3.grid(row=row,column=0,sticky="W")
+
+        option_frame.grid(row=4,column=0)#,columnspan=1)
+        image_frame.grid(row=4,column=1, sticky="n")#,pady=paddy*4)
+
+        hide_show_frame.grid(row=4,column=0,columnspan=2)
 
         button = tk.Button(self, text="Submit", command=start_download, bg=MainWindow.button_color,font=default_font)
         button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=1)
@@ -734,7 +744,12 @@ class MainWindow(tk.Tk):
                 for i in range(len(liste)):
                     if i > 3:
                         liste[i].grid()
+<<<<<<< Updated upstream
         hide_show_widgets()
+=======
+        #hide_show_widgets()
+
+>>>>>>> Stashed changes
         yt_link_input.focus_set()
 
         use_arrows = False
