@@ -1,21 +1,24 @@
 #Youtube downloader
 from pytube import YouTube, request
 #Pathing
+from os import makedirs #,listdir --Deprecated
 from os.path import dirname,exists
-from os import makedirs #,listdir #Deprecated
 #Tkinter
 import tkinter as tk
-#import tkinter.ttk as ttk #Deprecated
-from tkinter.font import Font as tkFont
+#import tkinter.ttk as ttk --Deprecated
 from tkinter import messagebox, filedialog
+from tkinter.font import Font as tkFont
 #Processing
-import multiprocess #Alternate to multiprocessing
+import multiprocess #Alternate to the default multiprocessing
 import threading
 #Images
-#import requests #Deprecated
+#import requests --Deprecated
 from PIL import Image,ImageTk
 import urllib
 import io
+#Oauth
+from pytube.innertube import _cache_dir,_token_file,_client_id,_client_secret
+import os,json,time
 #Error handeling
 from pytube import exceptions
 from urllib.error import URLError
@@ -26,9 +29,6 @@ from collections import defaultdict
 #Download GUI
 from DownloadGUI import DownloadGUI
 
-#Oauth
-from pytube.innertube import _cache_dir,_token_file,_client_id,_client_secret
-import os,json,time
 
 def cache_tokens(access_token, refresh_token, expires):
     """Cache an OAuth token. Modified method from pytube"""
@@ -43,9 +43,8 @@ def cache_tokens(access_token, refresh_token, expires):
     with open(_token_file, 'w') as f:
         json.dump(data, f)
 
-def fetch_bearer_token():
-    """Fetch an OAuth token. Modified method from pytube"""
-    print('Fetching OAuth2 access token...')
+def fetch_bearer_token(root:tk.Tk):
+    """Fetch an OAuth token. Modified method from pytube\n\nWIP"""
     # Subtracting 30 seconds is arbitrary to avoid potential time discrepencies
     start_time = int(time.time() - 30)
     data = {
@@ -86,7 +85,6 @@ def fetch_bearer_token():
     refresh_token = response_data['refresh_token']
     expires = start_time + response_data['expires_in']
     cache_tokens(access_token=access_token, refresh_token=refresh_token, expires=expires)
-    print('OAuth2 token fetched and cached.')
 
 
 class NoLink(Exception):
@@ -706,7 +704,7 @@ class MainWindow(tk.Tk):
 
         yt = self.yt
         filename = yt.streams[0].title
-        invalid = '<>:"/\|?*'
+        invalid = '<>:"/\|?*' #Invalid characters in windows filenames
         filename = "".join([x for x in filename if x not in invalid])
         stream_objects = []
 

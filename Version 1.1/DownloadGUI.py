@@ -16,7 +16,7 @@ import time
 import sys
 from proglog import TqdmProgressBarLogger
 
-#Merging files #Deprecated
+#Merging files --Deprecated
 #import moviepy.editor as moviepy 
 #import subprocess
 
