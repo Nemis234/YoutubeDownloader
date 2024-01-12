@@ -10,16 +10,13 @@ from tkinter import messagebox, filedialog
 from tkinter.font import Font as tkFont
 #Processing
 import multiprocess #Alternate to the default multiprocessing
-from multiprocess.context import Process
 import threading
 
 #Custom tkinter widgets
-from myCustomTkinter import DropDown
+from myCustomTkinter import DropDown, WebImage
 #Oauth
 from pytube.innertube import _cache_dir,_token_file,_client_id,_client_secret
 import os,json,time
-#Streams and WebImage classes
-from HelperClasses import Stream, WebImage
 #Error handeling
 from pytube import exceptions
 from urllib.error import URLError
@@ -102,7 +99,51 @@ class Size(tuple):
     def __init__(self) -> None:
         super().__init__()
 
+class Stream:
+    def __init__(self,yt:object,number:int, type:str="video", 
+                 filename:str=None, prefix:str=None, postfix:str=None) -> None:
+        self.yt = yt
+        self.type = type
+        self.number = number
+        self.filename = filename
+        self.prefix = prefix
+        self.postfix = postfix
+        self.directory = None
 
+    def __str__(self) -> str:
+        string = ""
+        string += f"Yt object: {self.yt}\n"
+        string += f"Type: {self.type}\n"
+        string += f"Stream number: {self.number}\n"
+        string += f"File name: {self.get_full_name()}\n"
+        string += f"Directory: {self.directory}\n"
+        
+        return string
+    
+    def set_directory (self,directory:str):
+        self.directory = directory
+    
+    
+    def make_prefix(self):
+        i = 0
+
+        if exists(self.directory+self.get_full_name()):
+            while exists(self.directory + self.get_full_name()):
+                i += 1
+                self.prefix = "" if i == 0 else "("+str(i)+")"
+                
+        
+        return self.prefix
+
+    def get_full_name(self):
+        name = ""
+        if not self.prefix == None:
+            name += self.prefix + " "
+        name += self.filename
+        if not self.postfix == None:
+            name += "." + self.postfix
+        
+        return name
 
 class WindowLayout(tk.Frame):
     def __init__(self,root:tk.Tk) -> tk.Frame:
@@ -197,7 +238,7 @@ class WindowLayout(tk.Frame):
         image_size = (int(round(192)),int(round(108)))
         imgUrl = f"https://img.youtube.com/vi/{url[url.find('watch?v=')+8:]}/maxresdefault.jpg"
         self.thumbnail_obj= WebImage(imgUrl,image_size)
-        tk_thubmnail = self.thumbnail_obj.tkImage
+        tk_thubmnail = self.thumbnail_obj.get_tkImage()
 
         self.thumbnail_label = thumbnail_label = tk.Label(frame,
                 image=tk_thubmnail,highlightbackground="blue")#,width=image_size[0],height=image_size[1])
@@ -260,7 +301,7 @@ class MainWindow(tk.Tk):
     button_color = "#7b7b7b"
     size_scale = 1
 
-    def __init__(self, size:tuple[int,int]=(1920,1080),size_scale: float=0.4) -> tk.Tk:
+    def __init__(self, size:tuple=(1920,1080),size_scale: float=0.4) -> tk.Tk:
         tk.Tk.__init__(self)
 
         self.x,self.y=x,y = size
@@ -276,7 +317,7 @@ class MainWindow(tk.Tk):
 
         self.layout = layout = WindowLayout(self)
         layout.pack(fill="both", expand=True)
-        self:MainWindow = self.initPopup(self,size_str,focus=False, resizable=True)
+        self = self.initPopup(self,size_str,focus=False, resizable=True)
         
 
         self.unbind_all("<Tab>")
@@ -319,7 +360,7 @@ class MainWindow(tk.Tk):
                 self.destroy()
                 return
     
-    def change_path(self,event=None,frame:WindowLayout=None):
+    def change_path(self,event=None,frame:tk.Frame=None):
         path = filedialog.askdirectory()
         if path:
             self.path = path
@@ -329,7 +370,7 @@ class MainWindow(tk.Tk):
             frame.path_entry.config(state="readonly")
         return
      
-    def onKey(self,event=None,frame:WindowLayout=None):
+    def onKey(self,event=None,frame:tk.Frame=None):
         if not frame:
             return
         main_widgets = frame.winfo_children()
@@ -380,7 +421,7 @@ class MainWindow(tk.Tk):
 
         return main_widgets[nextToFocus(focused_widget,main_widgets,event)].focus_set()
     
-    def submit_link(self,event=None,frame:WindowLayout=None):
+    def submit_link(self,event=None,frame:tk.Frame=None):
         yt_streams, yt, link = None,None,None
         def placeholder(*a,**kw):
             print("hi")
@@ -511,7 +552,7 @@ class MainWindow(tk.Tk):
         imgUrl = f"https://img.youtube.com/vi/{url[url.find('watch?v=')+8:]}/maxresdefault.jpg"
         frame.thumbnail_obj.set_img(imgUrl)
         frame.thumbnail_obj.resize(use_previous=True)
-        thumbnail_photo = frame.thumbnail_obj.tkImage
+        thumbnail_photo = frame.thumbnail_obj.get_tkImage()
         thumbnail_label = frame.thumbnail_label
         thumbnail_label.config(image=thumbnail_photo)
         thumbnail_label.image = thumbnail_photo
@@ -521,7 +562,7 @@ class MainWindow(tk.Tk):
         frame.running_tasks -= 1
         return 
 
-    def start_download(self,event=None,frame:WindowLayout=None):
+    def start_download(self,event=None,frame:tk.Frame=None):
         vid_type = frame.dropdown_type.get()
         vid_qual = frame.dropdown_vid_res.get()
         aud_qual = frame.dropdown_aud.get()
@@ -588,8 +629,7 @@ class MainWindow(tk.Tk):
                     liste[i].grid()
 
 
-    def initPopup(self:object=None, root:tk.Tk = None,wid:str="300x400", 
-                  focus:bool=False, title: str = "", resizable:bool = False) -> tk.Tk:
+    def initPopup(self:object=None, root:tk.Tk = None,wid:str="300x400", focus:bool=False, title: str = "", resizable:bool = False):
         """Lager et tkinter vindu sentrert på skjermen, uansett størrelse. 
         Hvis root ikke er definert, leger et nytt vindu som blir lukket når hovedvinduet lukkes
         \n:focus: om vinduet skal lukkes når brukeren klikker av
@@ -659,7 +699,7 @@ class MainWindow(tk.Tk):
             return
         self.destroy()
     
-    def have_internet(self) -> bool:
+    def have_internet(self):
         conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)
         try:
             conn.request("HEAD", "/")
@@ -669,10 +709,10 @@ class MainWindow(tk.Tk):
         finally:
             conn.close()
  
-    def retry_setup(self,event=None,frame:WindowLayout=None):
+    def retry_setup(self,event=None,frame:tk.Frame=None):
         if not frame:
             return
-        def destroy_widgets(frame:WindowLayout):
+        def destroy_widgets(frame):
             for widget in frame.winfo_children():
                 if "!frame" in str(widget):
                     destroy_widgets(widget)
@@ -696,7 +736,7 @@ class MainWindow(tk.Tk):
             self.state('zoomed')
         return
 
-    def window_state_changed(self,event=None,frame:WindowLayout=None):
+    def window_state_changed(self,event=None,frame:tk.Frame=None):
         def resize_text(i,k):
             i = int(i*k)
             if i == frame.default_font.config()["size"]:
@@ -716,7 +756,7 @@ class MainWindow(tk.Tk):
             thumb_size = new_size
             frame.thumbnail_obj.resize(thumb_size)
 
-            thumbnail_photo = frame.thumbnail_obj.tkImage
+            thumbnail_photo = frame.thumbnail_obj.get_tkImage()
 
             frame.thumbnail_label.config(image=thumbnail_photo)
             frame.thumbnail_label.image = thumbnail_photo
@@ -737,8 +777,7 @@ class MainWindow(tk.Tk):
         resize_text(i,k)
         resize_img(size,k)
 
-    def initDownload(self,yt:YouTube,stream_objects:list[Stream],
-                    will_concate:bool = False,path:str=""):
+    def initDownload(self,yt:object,stream_objects:list[Stream],will_concate:bool = False,path:str=""):
         
         if not path:
             directory = dirname(__file__)+"\\"
@@ -763,12 +802,11 @@ class MainWindow(tk.Tk):
         print(f"Starting download, numbers :{stream_objects}")
 
         #Deprecated #threading.Thread(target=run_download,args=(None,stream_objects,will_concate)).start()
-        new_process = Process(target=run_download,args=(None,stream_objects,will_concate,MainWindow.size_scale,MainWindow.button_color))
+        new_process = multiprocess.Process(target=run_download,args=(None,stream_objects,will_concate,MainWindow.size_scale,MainWindow.button_color))
         new_process.start()
 
 
-def run_download(root:MainWindow=None,stream_objects:list[Stream]=None,
-                 will_concate:bool=None,size_scale:float = 1, button_color:str = "white"):
+def run_download(root:tk.Tk=None,stream_objects:Stream=None,will_concate:bool=None,size_scale:float = 1, button_color:str = "white"):
     DownloadGUI(root,stream_objects,will_concate,size_scale,button_color)
 
 if __name__ == "__main__":

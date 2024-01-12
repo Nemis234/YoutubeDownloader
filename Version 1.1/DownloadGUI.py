@@ -1,4 +1,3 @@
-from __future__ import annotations
 from pytube import request
 #Pathing
 from os import remove
@@ -16,12 +15,6 @@ import threading
 import time
 import sys
 from proglog import TqdmProgressBarLogger
-#Stream object
-from HelperClasses import Stream
-#Main window, type checking
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from VideoDownload import MainWindow
 
 #Merging files --Deprecated
 #import moviepy.editor as moviepy 
@@ -73,7 +66,7 @@ class MyBarLogger(TqdmProgressBarLogger):
 
 class DownloadGUI():
     numb_bars = 0
-    def __init__(self,root:MainWindow = None,stream_objects:list[Stream]=None,
+    def __init__(self,root:tk.Misc = None,stream_objects:list=[object,object],
                  will_concate:bool = False, size_scale:float = 1, button_color:str = "white"):
         # Make the GUI
         print("Starting gui")
@@ -85,8 +78,6 @@ class DownloadGUI():
             self.size_scale = size_scale = 1
             self.root = tk.Tk()
             button_color = "white" """
-        if stream_objects == None:
-            return
         self.size_scale = size_scale if size_scale else 1
         self.button_color = button_color if button_color else "white"
         self.root = root if root else tk.Tk()
@@ -196,7 +187,7 @@ class DownloadGUI():
 
             print("printing", stream_obj,"\n")
 
-            stream_obj.make_prefix
+            stream_obj.make_prefix()
 
             print(stream_obj)
             #pass
@@ -359,7 +350,7 @@ class DownloadGUI():
                 for object in stream_objects:
                     print("Deleting:",object)
                     try:
-                        remove(object.directory + object.full_name)
+                        remove(object.directory + object.get_full_name())
                     except PermissionError as oops:
                         print(oops)
                         time.sleep(0.1)
@@ -418,7 +409,7 @@ class DownloadThread(threading.Thread):
     Threaded class. For downloading the specified download type, either video or audio
     """
     numb = 0
-    def __init__(self,ui:DownloadGUI,stream:Stream,is_audio:bool,numb:int = 0):
+    def __init__(self,ui:tk.Misc,stream:object,is_audio:bool,numb:int = 0):
         threading.Thread.__init__(self)
         self.numb = numb
         self.daemon = True
@@ -493,7 +484,7 @@ class DownloadThread(threading.Thread):
         #invalid = '<>:"/\|?* '
         #filename = "".join([x for x in filename if x not in invalid])
         
-        filename = stream_object.full_name #f"{stream_object.prefix}{stream_object.filename}"
+        filename = stream_object.get_full_name() #f"{stream_object.prefix}{stream_object.filename}"
 
         if not isaudio:
             path = f"{stream_object.directory}{filename}"
@@ -559,7 +550,8 @@ class DownloadThread(threading.Thread):
                             print("Done writing")
                         progress_function(downloaded=downloaded)
                     else:
-                        raise FileNotFoundError
+                        print("File doesnt exist!")
+                        return
                 else:
                     # no more data
                     print("completed",stream_object.prefix)
@@ -584,9 +576,6 @@ class DownloadThread(threading.Thread):
         except URLError as e:
             messagebox.showerror("Network error","A network error has occured\nTry again later")
             print("A network error has occured\nTry again later")
-        except FileNotFoundError as e:
-            messagebox.showerror("File not found","The file was not found\nPlease try again")
-            print("The file was not found\nPlease try again")
         except Exception as error:
             messagebox.showerror("Unknown error","An unexpected error has occured\nPlease try again")
             print("An exeption was made with the error:",error)
