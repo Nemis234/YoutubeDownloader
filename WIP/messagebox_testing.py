@@ -25,22 +25,19 @@ class TkMessageDialog(TkNewDialog):
 class TkCustomEntry(ttk.Entry):
     def __init__(self, parent:tk.Misc, text:str=None, *args, **kwargs) -> None:
         """A ttk.Entry that looks like a ttk.Message."""
-        default_options = {'style': 'TLabel', 
-                      'justify': 'center', 
-                      'state': 'readonly'}
+        default_options = {'style': 'TLabel', # This means ttk.Label uses a 'TLabel' style
+                      'justify': 'center', # justify to emulate the Messagebox look (centered).
+                      'state': 'readonly'} # `readonly` to protect the Entry from being overwritten
         
         for key in default_options:
             if not key in kwargs:
                 kwargs[key] = default_options[key]
         
         """ if not 'style' in kwargs:
-            # This means ttk.Label uses a 'TLabel' style
             kwargs['style'] = 'TLabel'
         if not 'justify' in kwargs:
-            # justify to emulate the Message look (centered).
             kwargs['justify'] = 'center'
         if not 'state' in kwargs:
-            # state = `readonly` to protect the Entry from being overwritten
             kwargs['state'] = 'readonly' """
         
         self.variable = tk.StringVar(parent, value=text)
