@@ -87,9 +87,8 @@ class TkCustomEntry(ttk.Entry):
         """A ttk.Entry that looks like a ttk.Message."""
         default_options = {
             'style': 'TLabel', # This means ttk.Label uses a 'TLabel' style
-            'justify': 'center', # justify to emulate the Messagebox look (centered).
+            'justify': 'left', # justify to emulate the Messagebox look (centered).
             'state': 'readonly'} # `readonly` to protect the Entry from being overwritten
-        
         for key in default_options:
             if not key in kwargs:
                 kwargs[key] = default_options[key]
@@ -175,10 +174,11 @@ class TkNewDialog(tk.Toplevel):
     def __init__(self, parent:tk.Tk, title:str=None,*args, **kwargs) -> None:
         if not title:
             title = ""
-        
+        #print(kwargs)
+
         tk.Toplevel.__init__(self, parent, *args, **kwargs)
         self.title(title)
-        self.geometry("205x125")
+        self.geometry("250x125")
         #self.attributes('-topmost', 'true')
         self.transient(parent)
         #parent.eval(f'tk::PlaceWindow {str(self)} center')
@@ -203,23 +203,45 @@ class TkNewDialog(tk.Toplevel):
 
 class TkMessageDialog(TkNewDialog):
     def __init__(self, parent: tk.Tk,website:str,code:str, title: str = None,font:Font=None,*args, **kwargs) -> None:
+        if not "background" in kwargs:
+            kwargs["background"] = "white"
         super().__init__(parent, title, *args, **kwargs)
+
         if not font:
             font = Font(family="Helvetica", size=10)
+        ttk.Style().configure('TLabel', background=kwargs.pop("background"))
         self.resizable(False, False)
-        label=ttk.Label(self, text="Please go to this website\nand enter the following code:",font=font,padding=8).pack()
-        TkCopyableWeblink(self, text=website,font=font).pack()
-        TkCustomEntry(self, text=code,font=font).pack()
-        button=ttk.Button(self, text="OK", command=self.destroy)
-        button.pack(side=tk.BOTTOM, anchor=tk.E, padx=5, pady=5)
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.focus_set()
 
+        frame1 = ttk.Frame(self,style="TLabel")
+        label=ttk.Label(frame1,image="::tk::icons::information")
+        label.pack(side=tk.LEFT, anchor=tk.N, padx=5, pady=5)
+
+        frame2 = ttk.Frame(self,style="TLabel")
+        ttk.Label(frame2, 
+            text="Please go to this website\nand enter the following code:"
+            ,font=font,anchor=tk.W, justify="left").pack(anchor="w")
+        TkCopyableWeblink(frame2, text=website,font=font).pack()
+        TkCustomEntry(frame2, text=code,font=font).pack()
+
+        frame3 = ttk.Frame(self)
+        button=ttk.Button(frame3, text="OK", command=self.destroy)
+        button.pack(side=tk.BOTTOM, anchor=tk.E, padx=5, pady=5)
+        frame1.grid(row=0, column=0, sticky=tk.N+tk.S+tk.E+tk.W,padx=10)
+        frame2.grid(row=0, column=1, sticky=tk.N+tk.S+tk.E+tk.W,)
+        frame3.grid(row=1, column=0, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 
 if __name__ == "__main__":
     # Testing
     parent = tk.Tk()
     #tk.Text(parent).pack()
     def callback():
+        from tkinter import messagebox
         hei = TkMessageDialog(parent, "https://www.google.com", "https://www.google.com", "Test")
+        messagebox.showinfo("Test", "Test\ntest\ntestTest\ntest\ntest")
     #TkWeblink(hei, text="Click me", link="https://www.google.com").pack()
     #TkCopyableWeblink(hei, text="Click me", link="https://www.google.com").pack()
     #TkCustomEntry(hei, text="this is an example").pack()
