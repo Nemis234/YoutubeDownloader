@@ -8,9 +8,10 @@ import io
 from urllib.request import urlopen
 #Errors
 from urllib.error import URLError
+from typing import Literal
 
 class Stream:
-    def __init__(self,yt:YouTube,number:int, type:str="video", 
+    def __init__(self,yt:YouTube,number:int, type:Literal["video","audio"]="video", 
                  filename:str=None, prefix:str=None, postfix:str=None) -> None:
         self.yt = yt
         self.type = type

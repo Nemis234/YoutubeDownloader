@@ -10,7 +10,8 @@ import tkinter as tk
 from tkinter import messagebox, filedialog
 from tkinter.font import Font as tkFont
 #Processing
-import multiprocess #Alternate to the default multiprocessing
+ #Alternate to the default multiprocessing
+from multiprocess.process import active_children
 from multiprocess.context import Process
 import threading
 
@@ -22,6 +23,7 @@ import os,json,time
 #Streams and WebImage classes
 from HelperClasses import Stream, WebImage
 #Error handeling
+from CustomExceptions import NoLink, NoConnection
 from pytube import exceptions
 from urllib.error import URLError
 import http.client as httplib #Cheks for internet connection
@@ -32,24 +34,13 @@ from collections import defaultdict
 from DownloadGUI import DownloadGUI
 
 
-
-class NoLink(Exception):
-    def __init__(self) -> None:
-        print("Input a valid link")
-        super().__init__()
-
-class NoConnection(Exception):
-    def __init__(self) -> None:
-        print("An error occured when connectiong to the internet")
-        super().__init__()
-
 class Size(tuple):
     def __init__(self) -> None:
         super().__init__()
 
 
 class WindowLayout(tk.Frame):
-    def __init__(self,root:MainWindow) -> tk.Frame:
+    def __init__(self,root:MainWindow) -> None:
         tk.Frame.__init__(self,root)
         self.root = root
 
@@ -126,7 +117,7 @@ class WindowLayout(tk.Frame):
 
         self.running_tasks = 0
         def do_tasks():
-            if self.running_tasks > 1:
+            if threading.active_count() > 1:
                 return
             
             self.running_tasks += 1
@@ -199,13 +190,13 @@ class WindowLayout(tk.Frame):
         
         path_entry.grid(row=6,column=0,pady=paddy,padx=paddx, columnspan=2)
         yt_link_input.focus_set()
-        root.hide_show_widgets(True,self)
+        root.hide_show_widgets(self,True)
 
 class MainWindow(tk.Tk):
     button_color = "#7b7b7b"
     size_scale = 1
 
-    def __init__(self, size:tuple[int,int]=(1920,1080),size_scale: float=0.4) -> tk.Tk:
+    def __init__(self, size:tuple[int,int]=(1920,1080),size_scale: float=0.4) -> None:
         tk.Tk.__init__(self)
 
         self.x,self.y=x,y = size
@@ -264,7 +255,7 @@ class MainWindow(tk.Tk):
                 self.destroy()
                 return
     
-    def change_path(self,event=None,frame:WindowLayout=None):
+    def change_path(self,event=None,frame:WindowLayout=None)->None:
         path = filedialog.askdirectory()
         if path:
             self.path = path
@@ -273,13 +264,13 @@ class MainWindow(tk.Tk):
             frame.path_entry.delete(0, tk.END)  # Empty the path_entry
             frame.path_entry.insert(0, path)
             frame.path_entry.config(state="readonly") """
-        return
+        
      
-    def onKey(self,event=None,frame:WindowLayout=None):
+    def onKey(self,event=None,frame:WindowLayout=None)->None:
         if not frame:
             return
         main_widgets = frame.winfo_children()
-        iterate_widgets = []
+        iterate_widgets:list[tk.Entry|tk.Label|tk.Button|DropDown] = []
 
         for widget in main_widgets:
             if not widget.winfo_ismapped():
@@ -304,15 +295,16 @@ class MainWindow(tk.Tk):
             iterate_widgets.append(widget)  
             
         main_widgets = iterate_widgets
-        focused_widget = frame.focus_get()
+        focused_widget:tk.Widget = frame.focus_get()
         print(focused_widget)
-
+        
         if event.keysym == "Return":
             for widget in main_widgets:
                     if widget == focused_widget and "!button" in str(widget):
-                        return widget.invoke()
+                        widget.invoke()
+                        return 
 
-        def nextToFocus(focused_widget,liste,event):
+        def nextToFocus(focused_widget,liste,event)->int:
             for i in range(len(liste)):
                 if focused_widget == liste[i]:
                     if event.state == 9:
@@ -324,14 +316,15 @@ class MainWindow(tk.Tk):
                         return 0
                     return i+1
 
-        return main_widgets[nextToFocus(focused_widget,main_widgets,event)].focus_set()
+        main_widgets[nextToFocus(focused_widget,main_widgets,event)].focus_set()
+        return 
     
-    def submit_link(self,event=None,frame:WindowLayout=None):
+    def submit_link(self,event=None,frame:WindowLayout=None)->None:
         yt_streams, yt, link = None,None,None
         def placeholder(*a,**kw):
             print("hi")
         
-        def getYtObject():
+        def getYtObject()->tuple[YouTube,list[Stream],str]:
             link = frame.yt_link_input.get()
 
             if link.lower() == "placeholder":
@@ -407,14 +400,15 @@ class MainWindow(tk.Tk):
                 return
             
         else:
-            yt_streams = self.streams
+            yt_streams:list[pytube.Stream]|None = self.streams
         streams = []
         if yt_streams == None or yt==None:
             return
         
         for x in yt_streams:
             single_stream = []
-
+            import pytube
+            
             try:
                 single_stream.append(x.itag)
             except: single_stream.append(None)
@@ -463,12 +457,12 @@ class MainWindow(tk.Tk):
         thumbnail_label.config(image=thumbnail_photo)
         thumbnail_label.image = thumbnail_photo
 
-        self.hide_show_widgets(False,frame)
+        self.hide_show_widgets(frame,False)
         
         frame.running_tasks -= 1
         return 
 
-    def start_download(self,event=None,frame:WindowLayout=None):
+    def start_download(self,event=None,frame:WindowLayout=None)->None:
         vid_type = frame.dropdown_type.get()
         vid_qual = frame.dropdown_vid_res.get()
         aud_qual = frame.dropdown_aud.get()
@@ -479,7 +473,8 @@ class MainWindow(tk.Tk):
 
 
         if all(item == "None" for item in [vid_qual,aud_qual]):
-            return messagebox.showerror("Option-error","No option selected\nSelect an option to proceed")
+            messagebox.showerror("Option-error","No option selected\nSelect an option to proceed")
+            return
 
         yt = self.yt
         filename = yt.streams[0].title
@@ -518,21 +513,22 @@ class MainWindow(tk.Tk):
                 #return self.initDownload(self.yt,audio_stream_no=audio_number)
         
         if len(stream_objects) == 0:
-            return -1
+            return
         
-        return self.initDownload(self.yt,stream_objects,will_concate,self.path)
+        self.initDownload(self.yt,stream_objects,will_concate,self.path)
+        return 
 
-    def hide_show_widgets(self,hide=True,frame:tk.Frame=None):
+    def hide_show_widgets(self,frame:tk.Frame,hide=True)->None:
         liste = frame.winfo_children()
 
-        if hide:
-            for i in range(len(liste)):
-                if i > 3:
+        
+        for i in range(len(liste)):
+            if i > 3:
+                if hide:
                     liste[i].grid_remove()
-        else:
-            for i in range(len(liste)):
-                if i > 3:
+                else:
                     liste[i].grid()
+
 
 
     def initPopup(self:object=None, root:tk.Tk = None,wid:str="300x400", 
@@ -543,7 +539,7 @@ class MainWindow(tk.Tk):
         \n:root: tkinter vinduet som skal bli modifisert, ofte hovedvinduet
         \n:title: tittelen på vinduet"""
 
-        def center(win:tk.Tk):
+        def center(win:tk.Tk)->None:
             """
             centers a tkinter window on the monitor
             :param win: the main window or Toplevel window to center
@@ -560,7 +556,7 @@ class MainWindow(tk.Tk):
             win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
             #win.deiconify()
 
-        def lossfocus(event):
+        def lossfocus(event:tk.Event)->None:
             """Lukker vinduet hvis brukeren klikker av tkinter-vinduet"""
             if event.widget is tkPopup:
                 w = tkPopup.tk.call('focus')
@@ -593,17 +589,17 @@ class MainWindow(tk.Tk):
         if event == "<FocusOutn>":
             self.focusedout = True
 
-    def destroy_window(self,event=None):
-        children = multiprocess.active_children()
+    def destroy_window(self,event=None)->None:
+        children:list[Process] = active_children()
 
         if len(children) > 0:
             yes_no = messagebox.askyesno("Closing","Are you sure you want to end all processes?")
             if yes_no:
                 print("Terminating")
-                for child in multiprocess.active_children():
+                for child in children:
                     child.terminate()
-                self.destroy()
-            return
+            else:
+                return
         self.destroy()
     
     def have_internet(self) -> bool:
@@ -616,7 +612,7 @@ class MainWindow(tk.Tk):
         finally:
             conn.close()
  
-    def retry_setup(self,event=None,frame:WindowLayout=None):
+    def retry_setup(self,event=None,frame:WindowLayout=None)->None:
         if not frame:
             return
         def destroy_widgets(frame:WindowLayout):
@@ -636,14 +632,14 @@ class MainWindow(tk.Tk):
         #self.layout.pack()
         return
 
-    def toggle_fullscreen(self, event=None):
+    def toggle_fullscreen(self, event=None)->None:
         if self.state()=='zoomed':
             self.state('normal')
         else:
             self.state('zoomed')
         return
 
-    def window_state_changed(self,event=None,frame:WindowLayout=None):
+    def window_state_changed(self,event=None,frame:WindowLayout=None)->None:
         def resize_text(i,k):
             i = int(i*k)
             if i == frame.default_font.config()["size"]:
@@ -685,7 +681,7 @@ class MainWindow(tk.Tk):
         resize_img(size,k)
 
     def initDownload(self,yt:YouTube,stream_objects:list[Stream],
-                    will_concate:bool = False,path:str=""):
+                    will_concate:bool = False,path:str="")->None:
         
         if not path:
             directory = dirname(__file__)+"\\"
@@ -704,7 +700,8 @@ class MainWindow(tk.Tk):
         
         if not self.have_internet():
             if messagebox.askretrycancel("No connection","No connection to YouTube found\nTry again later"):
-                return self.initDownload(yt,stream_objects,will_concate,directory)
+                self.initDownload(yt,stream_objects,will_concate,directory)
+                return
             return
         
         print(f"Starting download, numbers :{stream_objects}")
@@ -714,7 +711,7 @@ class MainWindow(tk.Tk):
         new_process.start()
 
 
-def cache_tokens(access_token, refresh_token, expires):
+def cache_tokens(access_token:str, refresh_token:str, expires:int)->None:
     """Cache an OAuth token. Modified method from pytube"""
     data = {
         'access_token': access_token,
@@ -767,9 +764,9 @@ def fetch_bearer_token(parent:WindowLayout=None):
 
     response_data = json.loads(response.read())
 
-    access_token = response_data['access_token']
-    refresh_token = response_data['refresh_token']
-    expires = start_time + response_data['expires_in']
+    access_token:str = response_data['access_token']
+    refresh_token:str = response_data['refresh_token']
+    expires:int = start_time + response_data['expires_in']
     cache_tokens(access_token=access_token, refresh_token=refresh_token, expires=expires)
 
 def run_download(root:MainWindow=None,stream_objects:list[Stream]=None,

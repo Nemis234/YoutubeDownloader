@@ -22,7 +22,6 @@ from HelperClasses import Stream
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from VideoDownload import MainWindow
-
 #Merging files --Deprecated
 #import moviepy.editor as moviepy 
 #import subprocess
@@ -43,7 +42,7 @@ class PrintLogger(): # create file like object
 
 class MyBarLogger(TqdmProgressBarLogger):
     percentage = 0
-    def __init__(self,ui):
+    def __init__(self,ui:DownloadGUI):
         super().__init__(init_state=None, bars=None, ignored_bars=("chunk"),print_messages=False,
                     logged_bars='all', min_time_interval=0.5, ignore_bars_under=100)
         self.ui = ui
@@ -196,7 +195,7 @@ class DownloadGUI():
 
             print("printing", stream_obj,"\n")
 
-            stream_obj.make_prefix
+            stream_obj.make_prefix()
 
             print(stream_obj)
             #pass
@@ -235,7 +234,7 @@ class DownloadGUI():
             self.style.configure('text.Horizontal.TProgressbar',
                         text='{:g} %'.format(self.percent))
 
-        ## If the new value is more than 10
+        ## If the new value is more than 100
         else:
             print('[main thread] Progress bar done. Exiting!')
             ## Exit the GUI (and terminate the script)
@@ -246,14 +245,14 @@ class DownloadGUI():
         self.filesize += size
 
     def update_percent(self,downloaded=None):
-            if downloaded:
-                self.total_downloaded += downloaded
-                current = self.total_downloaded/self.filesize
-            else:
-                current = 0
-            
-            percent = int(round(current*100,0))
-            self.percent = percent
+        if downloaded:
+            self.total_downloaded += downloaded
+            current = self.total_downloaded/self.filesize
+        else:
+            current = 0
+        
+        percent = int(round(current*100,0))
+        self.percent = percent
 
     def concate_files(self, event=None):
         return
@@ -478,7 +477,6 @@ class DownloadThread(threading.Thread):
         stream = stream_object.yt.streams.get_by_itag(stream_object.number)
 
         if stream == None:
-            
             self.ui.destroy_gui()
             raise TypeError("Download not found")
 
