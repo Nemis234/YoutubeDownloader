@@ -1,3 +1,4 @@
+from __future__ import annotations
 #Youtube downloader
 from pytube import YouTube, request
 #Pathing
@@ -14,7 +15,7 @@ from multiprocess.context import Process
 import threading
 
 #Custom tkinter widgets
-from myCustomTkinter import DropDown
+from myCustomTkinter import DropDown, TkMessageDialog, TkCustomEntry
 #Oauth
 from pytube.innertube import _cache_dir,_token_file,_client_id,_client_secret
 import os,json,time
@@ -30,62 +31,6 @@ from collections import defaultdict
 #Download GUI
 from DownloadGUI import DownloadGUI
 
-
-def cache_tokens(access_token, refresh_token, expires):
-    """Cache an OAuth token. Modified method from pytube"""
-    data = {
-        'access_token': access_token,
-        'refresh_token': refresh_token,
-        'expires': expires
-    }
-
-    if not os.path.exists(_cache_dir):
-        os.mkdir(_cache_dir)
-    with open(_token_file, 'w') as f:
-        json.dump(data, f)
-
-def fetch_bearer_token():
-    """Fetch an OAuth token. Modified method from pytube\n\nWIP"""
-    # Subtracting 30 seconds is arbitrary to avoid potential time discrepencies
-    start_time = int(time.time() - 30)
-    data = {
-        'client_id': _client_id,
-        'scope': 'https://www.googleapis.com/auth/youtube'
-    }
-    response = request._execute_request(
-        'https://oauth2.googleapis.com/device/code',
-        'POST',
-        headers={
-            'Content-Type': 'application/json'
-        },
-        data=data
-    )
-    response_data = json.loads(response.read())
-    verification_url = response_data['verification_url']
-    user_code = response_data['user_code']
-    print(f'Please open {verification_url} and input code {user_code}')
-    input('Press enter when you have completed this step.')
-
-    data = {
-        'client_id': _client_id,
-        'client_secret': _client_secret,
-        'device_code': response_data['device_code'],
-        'grant_type': 'urn:ietf:params:oauth:grant-type:device_code'
-    }
-    response = request._execute_request(
-        'https://oauth2.googleapis.com/token',
-        'POST',
-        headers={
-            'Content-Type': 'application/json'
-        },
-        data=data
-    )
-    response_data = json.loads(response.read())
-
-    access_token = response_data['access_token']
-    refresh_token = response_data['refresh_token']
-    expires = start_time + response_data['expires_in']
-    cache_tokens(access_token=access_token, refresh_token=refresh_token, expires=expires)
 
 
 class NoLink(Exception):
@@ -103,9 +48,8 @@ class Size(tuple):
         super().__init__()
 
 
-
 class WindowLayout(tk.Frame):
-    def __init__(self,root:tk.Tk) -> tk.Frame:
+    def __init__(self,root:MainWindow) -> tk.Frame:
         tk.Frame.__init__(self,root)
         self.root = root
 
@@ -248,9 +192,10 @@ class WindowLayout(tk.Frame):
                 bg=MainWindow.button_color,font=default_font)
         path_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=2)
         
-        path_entry = tk.Entry(self,font=path_font, width=60)
-        path_entry.insert(0,root.path)
-        path_entry.config(state="readonly")
+        self.path_entry = path_entry = TkCustomEntry(self,text=root.path,font=path_font, width=60)
+            #tk.Entry(self,font=path_font, width=60)
+        """ path_entry.insert(0,root.path)
+        path_entry.config(state="readonly") """
         
         path_entry.grid(row=6,column=0,pady=paddy,padx=paddx, columnspan=2)
         yt_link_input.focus_set()
@@ -323,10 +268,11 @@ class MainWindow(tk.Tk):
         path = filedialog.askdirectory()
         if path:
             self.path = path
-            frame.path_entry.config(state="normal")
+            frame.path_entry.variable.set(path)
+            """ .config(state="normal")
             frame.path_entry.delete(0, tk.END)  # Empty the path_entry
             frame.path_entry.insert(0, path)
-            frame.path_entry.config(state="readonly")
+            frame.path_entry.config(state="readonly") """
         return
      
     def onKey(self,event=None,frame:WindowLayout=None):
@@ -403,14 +349,15 @@ class MainWindow(tk.Tk):
                 frame.running_tasks -= 1
                 raise NoLink
             try:
+                access_token = None
                 if os.path.exists(_token_file):
                     with open(_token_file) as f:
                         data = json.load(f)
                         access_token = data['access_token']
                 if not access_token:
-                    fetch_bearer_token()
-            except:
-                print("Failed to fetch token")
+                    fetch_bearer_token(self)
+            except error as e:
+                print(e)
             
             if not self.have_internet():
                 raise NoConnection
@@ -536,7 +483,7 @@ class MainWindow(tk.Tk):
 
         yt = self.yt
         filename = yt.streams[0].title
-        invalid = '<>:"/\|?*' #Invalid characters in windows filenames
+        invalid = r'<>:"/\|?*' #Invalid characters in windows filenames
         filename = "".join([x for x in filename if x not in invalid])
         stream_objects = []
 
@@ -766,6 +713,64 @@ class MainWindow(tk.Tk):
         new_process = Process(target=run_download,args=(None,stream_objects,will_concate,MainWindow.size_scale,MainWindow.button_color))
         new_process.start()
 
+
+def cache_tokens(access_token, refresh_token, expires):
+    """Cache an OAuth token. Modified method from pytube"""
+    data = {
+        'access_token': access_token,
+        'refresh_token': refresh_token,
+        'expires': expires
+    }
+
+    if not os.path.exists(_cache_dir):
+        os.mkdir(_cache_dir)
+    with open(_token_file, 'w') as f:
+        json.dump(data, f)
+
+def fetch_bearer_token(parent:WindowLayout=None):
+    """Fetch an OAuth token. Modified method from pytube\n\nWIP"""
+    # Subtracting 30 seconds is arbitrary to avoid potential time discrepencies
+    start_time = int(time.time() - 30)
+    data = {
+        'client_id': _client_id,
+        'scope': 'https://www.googleapis.com/auth/youtube'
+    }
+    response = request._execute_request(
+        'https://oauth2.googleapis.com/device/code',
+        'POST',
+        headers={
+            'Content-Type': 'application/json'
+        },
+        data=data
+    )
+    response_data = json.loads(response.read())
+    verification_url = response_data['verification_url']
+    user_code = response_data['user_code']
+    
+    message = TkMessageDialog(parent,verification_url,user_code,"YouTube verification")
+    parent.wait_window(message)
+
+    data = {
+        'client_id': _client_id,
+        'client_secret': _client_secret,
+        'device_code': response_data['device_code'],
+        'grant_type': 'urn:ietf:params:oauth:grant-type:device_code'
+    }
+    response = request._execute_request(
+        'https://oauth2.googleapis.com/token',
+        'POST',
+        headers={
+            'Content-Type': 'application/json'
+        },
+        data=data
+    )
+
+    response_data = json.loads(response.read())
+
+    access_token = response_data['access_token']
+    refresh_token = response_data['refresh_token']
+    expires = start_time + response_data['expires_in']
+    cache_tokens(access_token=access_token, refresh_token=refresh_token, expires=expires)
 
 def run_download(root:MainWindow=None,stream_objects:list[Stream]=None,
                  will_concate:bool=None,size_scale:float = 1, button_color:str = "white"):
