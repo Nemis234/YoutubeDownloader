@@ -86,7 +86,7 @@ class WebImage:
             img = Image.open(io.BytesIO(raw_data))
         except URLError:
             print("whoops")
-            defaultThumbnail = dirname(__file__)+"\\defaultThumbnail.jpg"
+            defaultThumbnail = dirname(__file__)+"\\Assets\\defaultThumbnail.jpg"
             with open(defaultThumbnail,"rb") as f:
                 img = Image.open(io.BytesIO(f.read()))
                 
