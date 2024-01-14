@@ -82,9 +82,9 @@ class DropDown(tk.OptionMenu):
         for x in options:
             self["menu"].add_command(label=x,command=tk._setit(self.var, x))
 
-class TkCustomEntry(ttk.Entry):
+class TkCopyableLabel(ttk.Entry):
     def __init__(self, parent:tk.Misc, text:str, *args, **kwargs) -> None:
-        """A ttk.Entry that looks like a ttk.Message."""
+        """A ttk.Entry that looks like a ttk.Label."""
         default_options = {
             'style': 'TLabel', # This means ttk.Label uses a 'TLabel' style
             'justify': 'left', # justify to emulate the Messagebox look (centered).
@@ -149,7 +149,7 @@ class TkWeblink(tk.Label):
     def _on_leave(self, event):
         self._entered = False
 
-class TkCopyableWeblink(TkCustomEntry, TkWeblink):
+class TkCopyableWeblink(TkCopyableLabel, TkWeblink):
     def __init__(self, parent: tk.Misc, text: str,link:str=None, *args, **kwargs) -> None:
         """An Entry widget that opens a web link when clicked.
         If no link is spesified, the label text will be used as the link.
@@ -225,7 +225,7 @@ class TkMessageDialog(TkNewDialog):
             text="Please go to this website\nand enter the following code:"
             ,font=font,anchor=tk.W, justify="left").pack(anchor="w")
         TkCopyableWeblink(frame2, text=website,font=font).pack()
-        TkCustomEntry(frame2, text=code,font=font).pack()
+        TkCopyableLabel(frame2, text=code,font=font).pack()
 
         frame3 = ttk.Frame(self)
         button=ttk.Button(frame3, text="OK", command=self.destroy)

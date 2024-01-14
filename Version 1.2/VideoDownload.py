@@ -16,7 +16,7 @@ from multiprocess.context import Process
 import threading
 
 #Custom tkinter widgets
-from myCustomTkinter import DropDown, TkMessageDialog, TkCustomEntry
+from myCustomTkinter import DropDown, TkMessageDialog, TkCopyableLabel, TkCustomEntry, TkImageLabel
 #Oauth
 from pytube.innertube import _cache_dir,_token_file,_client_id,_client_secret
 import os,json,time
@@ -183,7 +183,7 @@ class WindowLayout(tk.Frame):
                 bg=MainWindow.button_color,font=default_font)
         path_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=2)
         
-        self.path_entry = path_entry = TkCustomEntry(self,text=root.path,font=path_font, width=60)
+        self.path_entry = path_entry = TkCopyableLabel(self,text=root.path,font=path_font, width=60)
             #tk.Entry(self,font=path_font, width=60)
         """ path_entry.insert(0,root.path)
         path_entry.config(state="readonly") """
