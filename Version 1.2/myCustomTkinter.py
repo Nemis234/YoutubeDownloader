@@ -239,7 +239,6 @@ class TkImageLabel(tk.Label):
         self.im = None
         self.delay = 100
         self.continue_animation = False
-        self.old_time = time.time()
 
     def set_img(self, im, size=(50,50)):
         if isinstance(im, str):
@@ -275,10 +274,7 @@ class TkImageLabel(tk.Label):
             self.config(image=self.frames[0])
         else:
             self.continue_animation = True
-            self.old_time = time.time()
             self.next_frame()
-            #Thread(target=self.next_frame).start()
-            #self.next_frame()
 
     def stop(self):
         """Stops the animation"""
@@ -289,12 +285,9 @@ class TkImageLabel(tk.Label):
         self.update()
         if self.frames and self.continue_animation:
             self.loc += 1
-            print("next frame",self.loc)
             self.loc %= len(self.frames)
             self.config(image=self.frames[self.loc])
             self.master.update_idletasks()
-            """ print(time.time() - self.old_time, self.delay)
-            self.old_time = time.time() """
             self.master.after(self.delay, self.next_frame)
     
     def resize(self, size:tuple[int,int]):

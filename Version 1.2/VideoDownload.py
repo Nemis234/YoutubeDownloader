@@ -542,7 +542,6 @@ class MainWindow(tk.Tk):
                 liste[i].grid()
 
 
-
     def initPopup(self:object=None, root:tk.Tk = None,wid:str="300x400", 
                   focus:bool=False, title: str = "", resizable:bool = False) -> tk.Tk:
         """Lager et tkinter vindu sentrert på skjermen, uansett størrelse. 
