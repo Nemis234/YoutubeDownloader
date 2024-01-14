@@ -2,12 +2,13 @@ from __future__ import annotations
 from pytube import request
 #Pathing
 from os import remove
-from os.path import exists
+from os.path import exists, dirname
 #Tkinter windows
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import messagebox
 from tkinter.font import Font as tkFont
+from myCustomTkinter import TkImageLabel
 #Internet checking and errors
 import http.client as httplib
 from urllib.error import URLError
@@ -73,7 +74,7 @@ class MyBarLogger(TqdmProgressBarLogger):
 class DownloadGUI():
     numb_bars = 0
     def __init__(self,root:MainWindow = None,stream_objects:list[Stream]=None,
-                 will_concate:bool = False, size_scale:float = 1, button_color:str = "white"):
+                 will_concate:bool = False, size_scale:float = 0.4, button_color:str = "white"):
         # Make the GUI
         print("Starting gui")
         """ if not root == None:
@@ -88,7 +89,7 @@ class DownloadGUI():
             return
         self.size_scale = size_scale if size_scale else 1
         self.button_color = button_color if button_color else "white"
-        self.root = root if root else tk.Tk()
+        self.root = tk.Tk()#root if root else tk.Tk()
 
         print("Size and color: ",size_scale, button_color)
         
@@ -101,7 +102,6 @@ class DownloadGUI():
         fontSize = int(20)
         font = ("Arial",fontSize)
         self.default_font = default_font = tkFont(font=font[0],size=fontSize)
-
 
 
         self.style = style = ttk.Style(self.root)
@@ -146,21 +146,29 @@ class DownloadGUI():
         self.root.protocol("WM_DELETE_WINDOW",self.exit_window)
 
         ## Pack the progress bar in to the GUI
-        self.progress.pack()
+        self.root.columnconfigure(0, weight=1)
+        self.root.columnconfigure(1, weight=1)
+        row = 1
+        self.progress.grid(row=row,column=0,columnspan=2)#,padx=10,pady=10)
+        row = 2
         message = ("Canceled", "Do you want to cancel all downloads?")
         button = tk.Button(self.root,text="Cancel",command=lambda: self.exit_window(message=message),bg = button_color,font=default_font)
-        button.pack()
+        button.grid(row=row,column=0, columnspan=2,padx=10,pady=10)
+
+        self.gif_label= gif_label = TkImageLabel(self.root)
+        gif_label.grid(row=row,column=1,padx=10,pady=10)
+        gif_label.set_img(dirname(__file__)+"\\Assets\\LoadingAnimation.gif",(20,20))
+        gif_label.run()
 
         self.window_configure_count = 0
         self.root.bind("<Configure>",self.window_state_changed)
 
 
         self.concate_thread=None
-        
         if root == None:
             print("Download bars running:", DownloadGUI.numb_bars)
             self.run()
-            self.root.mainloop()
+        self.root.mainloop()
 
     def have_internet(self):
         conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)
@@ -333,12 +341,18 @@ class DownloadGUI():
 
     def exit_window(self,event=None,message=("Exit", "Do you want to exit?")):
         self.stop = True
+        self.gif_label.stop(freeze=True)
         if messagebox.askyesno(*message):
             self.cancel_all = True
-            
-            self.delete_files()
-            return self.destroy_gui()
+            try:
+                self.delete_files()
+            except Exception as e:
+                raise e
+            finally:
+                self.destroy_gui()
+            return
         self.stop = False
+        self.gif_label.run()
 
     def delete_files(self,event=None):
         if len(self.stream_objects) == 0:
@@ -367,6 +381,7 @@ class DownloadGUI():
                         print(oops)
                         time.sleep(0.1)
                         continue
+                    
                     
                     print("removed")
                     stream_objects.remove(object)
@@ -590,5 +605,6 @@ class DownloadThread(threading.Thread):
             print("An exeption was made with the error:",error)
 
 if __name__ == "__main__":
-    from VideoDownload import MainWindow
-    MainWindow().mainloop()
+    DownloadGUI(1,stream_objects=[Stream("https://www.youtube.com/watch?v=5qap5aO4i9A",18,"video","C:\\Users\\ny\\Desktop\\")])
+    """ from VideoDownload import MainWindow
+    MainWindow().mainloop() """
