@@ -4,8 +4,6 @@ from tkinter.font import Font
 import webbrowser # for opening links
 from PIL import Image, ImageTk
 from itertools import count
-from threading import Thread
-import time
 
 
 class DropDown(tk.OptionMenu):
