@@ -551,11 +551,10 @@ class MainWindow(tk.Tk):
             """
             win.withdraw()
             win.update_idletasks()
+            screen_width = win.winfo_screenwidth()
             screen_height = win.winfo_screenheight()
             width = win.winfo_width()
-            frm_width = win.winfo_rootx() - win.winfo_x()
             height = win.winfo_height()
-            titlebar_height = win.winfo_rooty() - win.winfo_y()
 
             # calculate position x and y coordinates
             x = (screen_width - width)//2
