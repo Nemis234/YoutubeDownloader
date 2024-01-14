@@ -14,7 +14,6 @@ from tkinter.font import Font as tkFont
 from multiprocess.process import active_children
 from multiprocess.context import Process
 import threading
-
 #Custom tkinter widgets
 from myCustomTkinter import DropDown, TkMessageDialog, TkCopyableLabel, TkCustomEntry, TkImageLabel
 #Oauth
@@ -123,12 +122,21 @@ class WindowLayout(tk.Frame):
                 return
             
             self.running_tasks += 1
-            threading.Thread(target=root.submit_link, args=(None,self, )).start()
+            def run(self:MainWindow,frame:WindowLayout):
+                frame.gif_label.run()
+                self.submit_link(frame=frame)
+                frame.gif_label.stop()
+
+            threading.Thread(target=run, args=(root,self, )).start()
         
         self.submit_button = submit_button = tk.Button(self,text="Submit link",bg = MainWindow.button_color,font=default_font)
         submit_button.config(command=do_tasks)
         submit_button.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
-        
+
+        self.gif_label= gif_label = TkImageLabel(self)
+        gif_label.grid(row=row,column=1,pady=paddy,padx=paddx)
+        gif_label.set_img(dirname(__file__)+"\\Assets\\LoadingAnimation.gif",(50,50))
+
         frame=tk.Frame(self,highlightbackground="blue", highlightthickness=2)
         
         image_size = (int(round(192)),int(round(108)))
@@ -527,12 +535,11 @@ class MainWindow(tk.Tk):
         liste = frame.winfo_children()
 
         
-        for i in range(len(liste)):
-            if i > 3:
-                if hide:
-                    liste[i].grid_remove()
-                else:
-                    liste[i].grid()
+        for i in range(5,len(liste)):
+            if hide:
+                liste[i].grid_remove()
+            else:
+                liste[i].grid()
 
 
 
@@ -672,6 +679,16 @@ class MainWindow(tk.Tk):
             frame.thumbnail_label.config(image=thumbnail_photo)
             frame.thumbnail_label.image = thumbnail_photo
         
+        def resize_gif(size,k):
+            width, height = size
+            new_size = (int(width*k),int(height*k))
+            if frame.gif_label.size == new_size:
+                return
+            gif_size = new_size
+            print(gif_size)
+            frame.gif_label.resize(gif_size)
+
+
         if self.state() == "zoomed" and self.window_configure_count > 0:
             self.window_configure_count = 0
         if self.state() == "normal" and self.window_configure_count < 1:
@@ -683,10 +700,12 @@ class MainWindow(tk.Tk):
         w = self.winfo_width()
         h = self.winfo_height()
         k = 1 + min(w, h) / 100 
-        size = (int(192/3),int(108/3))
-        
+        im_size = (192//3,108//3)
+        gif_size = (40//5,40//5)
+
         resize_text(i,k)
-        resize_img(size,k)
+        resize_img(im_size,k)
+        resize_gif(gif_size,k)
 
     def initDownload(self,yt:YouTube,stream_objects:list[Stream],
                     will_concate:bool = False,path:str="")->None:
