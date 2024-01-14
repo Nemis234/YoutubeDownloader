@@ -2,6 +2,10 @@ import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter.font import Font
 import webbrowser # for opening links
+from PIL import Image, ImageTk
+from itertools import count
+from threading import Thread
+import time
 
 
 class DropDown(tk.OptionMenu):
@@ -220,6 +224,89 @@ class TkCopyableWeblink(TkCopyableLabel, TkWeblink):
         self.init_binds()
 
 
+class TkImageLabel(tk.Label):
+    """a label that displays images, and plays them if they are gifs
+    
+    Edited code, added resizing.
+    Credit to Avishka Induwara on StackOverflow
+    https://stackoverflow.com/questions/43770847/play-an-animated-gif-in-python-with-tkinter/77301483#77301483"""
+    
+    def __init__(self, parent:tk.Misc, *args, **kwargs) -> None:
+        super().__init__(parent, *args, **kwargs)
+        self.size = (50,50)
+        self.loc = 0
+        self.frames = []
+        self.im = None
+        self.delay = 100
+        self.continue_animation = False
+        self.old_time = time.time()
+
+    def set_img(self, im, size=(50,50)):
+        if isinstance(im, str):
+            im = Image.open(im)
+        
+        if not self.im == im:
+            self.im = im
+        
+        self.loc = 0
+        self.unload()
+        self.size = size
+
+        try:
+            for i in count(1):
+                self.frames.append(ImageTk.PhotoImage(im.resize(size).copy()))
+                im.seek(i)
+        except EOFError:
+            pass
+
+        try:
+            self.delay = im.info['duration']
+        except:
+            self.delay = 100
+    
+    def unload(self):
+        print("unloading")
+        self.stop()
+        self.frames = []
+
+    def run(self):
+        """Starts the animation or sets the image if it is not a gif"""
+        if len(self.frames) == 1:
+            self.config(image=self.frames[0])
+        else:
+            self.continue_animation = True
+            self.old_time = time.time()
+            self.next_frame()
+            #Thread(target=self.next_frame).start()
+            #self.next_frame()
+
+    def stop(self):
+        """Stops the animation"""
+        self.continue_animation = False
+        self.config(image="")
+
+    def next_frame(self):
+        self.update()
+        if self.frames and self.continue_animation:
+            self.loc += 1
+            print("next frame",self.loc)
+            self.loc %= len(self.frames)
+            self.config(image=self.frames[self.loc])
+            self.master.update_idletasks()
+            """ print(time.time() - self.old_time, self.delay)
+            self.old_time = time.time() """
+            self.master.after(self.delay, self.next_frame)
+    
+    def resize(self, size:tuple[int,int]):
+        stopped = False
+        if self.continue_animation:
+            self.stop()
+            stopped = True
+        self.set_img(self.im,size)
+        if stopped:
+            self.run()
+
+
 class TkNewDialog(tk.Toplevel):
     def __init__(self, parent:tk.Tk, title:str=None,*args, **kwargs) -> None:
         if not title:
@@ -284,18 +371,31 @@ class TkMessageDialog(TkNewDialog):
         frame2.grid(row=0, column=1, sticky=tk.N+tk.S+tk.E+tk.W,)
         frame3.grid(row=1, column=0, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 
+
 if __name__ == "__main__":
-    # Testing
-    parent = tk.Tk()
-    #tk.Text(parent).pack()
-    def callback():
-        from tkinter import messagebox
-        hei = TkMessageDialog(parent, "https://www.google.com", "https://www.google.com", "Test")
-        messagebox.showinfo("Test", "Test\ntest\ntestTest\ntest\ntest")
-    #TkWeblink(hei, text="Click me", link="https://www.google.com").pack()
-    #TkCopyableWeblink(hei, text="Click me", link="https://www.google.com").pack()
-    #TkCustomEntry(hei, text="this is an example").pack()
-    #hei.center()
-    tk.Button(parent, text="Click me", command=callback).pack()
-    parent.mainloop()
+    def testing():
+        # Testing
+        parent = tk.Tk()
+        #tk.Text(parent).pack()
+        def callback():
+            return
+            from tkinter import messagebox
+            hei = TkMessageDialog(parent, "https://www.google.com", "https://www.google.com", "Test")
+            messagebox.showinfo("Test", "Test\ntest\ntestTest\ntest\ntest")
+        #TkWeblink(hei, text="Click me", link="https://www.google.com").pack()
+        #TkCopyableWeblink(hei, text="Click me", link="https://www.google.com").pack()
+        #TkCustomEntry(hei, text="this is an example").pack()
+        #hei.center()
+        TkCustomEntry(parent, text="Input here").pack()
+
+        tk.Button(parent, text="Click me", command=callback).pack()
+        label = TkImageLabel(parent)
+        label.pack()
+        from os.path import dirname
+        file = dirname(__file__)+"\\Assets\\LoadingAnimation.gif"
+        label.set_img(file)
+        label.run()
+        parent.mainloop()
+    
+    testing()
 
