@@ -109,8 +109,10 @@ class WindowLayout(tk.Frame):
         video_label = tk.Label(self,text="Videolink eller ID: ", font=default_font)
         video_label.grid(row=row,column=0,pady=paddy,padx=paddx)
 
-        self.yt_link_input = yt_link_input = root.yt_link_input = tk.Entry(self,font=default_font, width=20)
-        yt_link_input.insert(0,"dQw4w9WgXcQ")#"0IhmkF50VgE")
+        default_text = "dQw4w9WgXcQ"#"Link/ID"
+        
+        self.yt_link_input = yt_link_input = TkCustomEntry(self,default_text,font=default_font, width=20)
+        #yt_link_input.insert(0,"dQw4w9WgXcQ")#"0IhmkF50VgE")
         yt_link_input.grid(row=row,column=1,pady=paddy,padx=paddx)
 
         row = 3
@@ -325,9 +327,12 @@ class MainWindow(tk.Tk):
             print("hi")
         
         def getYtObject()->tuple[YouTube,list[Stream],str]:
-            link = frame.yt_link_input.get()
+            link = frame.yt_link_input.get(get_default=True)
 
             if link.lower() == "placeholder":
+                frame.running_tasks -= 1
+                raise NoLink
+            if not link:
                 frame.running_tasks -= 1
                 raise NoLink
             

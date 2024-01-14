@@ -118,6 +118,56 @@ class TkCopyableLabel(ttk.Entry):
             kwargs['fill'] = tk.BOTH """
         super().pack(*args, **kwargs)
 
+class TkCustomEntry(tk.Entry):
+    def __init__(self, parent:tk.Misc, text:str="Input here", 
+                 fg_color:str="black",temp_color:str ="grey", *args, **kwargs) -> None:
+        """A tk.Entry that puts default text in the 
+        entry when it is empty and not focused.
+        
+        The default text will be removed when the user clicks on the entry.
+        If the user clicks outside the entry, the default text will be restored.
+        The color of the user input can be changed by setting the fg_color parameter.
+        The color of the default text can be changed by setting the temp_color parameter.
+        """
+        self.temp_color = temp_color
+        self.fg_color = fg_color
+
+        if not 'fg' in kwargs:
+            kwargs['fg'] = temp_color
+        else:
+            self.temp_color = kwargs['fg']
+        
+        tk.Entry.__init__(self, parent, *args, **kwargs)
+        self.text = text
+
+        self.insert(0, text)
+        self.bind('<FocusIn>', self.on_focusin)
+        self.bind('<FocusOut>', self.on_focusout)
+
+    def on_focusin(self, event)->None:
+        """remove default text when the entry is focused"""
+        if self.cget('fg') == self.temp_color:
+            self.delete(0, tk.END) # delete all the text in the entry
+            self.insert(0, '') #Insert blank for user input
+            self.config(fg = self.fg_color)
+    
+    def on_focusout(self, event)->None:
+        """add default text when the entry is not focused"""
+        if len(self.get()) - self.get().count(' ') < 1:
+            self.insert(0, self.text)
+            self.config(fg = self.temp_color)
+
+    def insert(self, index: int, string: str) -> None:
+        """insert text into the entry, in the color and maner as default text"""
+        #self.config(fg = self.temp_color)
+        tk.Entry.insert(self, index, string)
+
+    def get(self,get_default: bool = False) -> str:
+        """get the text from the entry, excluding the default and inserted text"""
+        if self.cget('fg') == self.temp_color and not get_default:
+            return ''
+        return tk.Entry.get(self)
+
 class TkWeblink(tk.Label):
     def __init__(self, parent:tk.Misc, text:str, link:str=None, *args, **kwargs) -> None:
         """A label that opens a web link when clicked.
