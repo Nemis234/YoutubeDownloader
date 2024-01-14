@@ -274,9 +274,13 @@ class TkImageLabel(tk.Label):
             self.continue_animation = True
             self.next_frame()
 
-    def stop(self):
-        """Stops the animation"""
+    def stop(self,freeze:bool=False):
+        """Stops the animation
+        If freeze is True, the current frame will be set as the image"""
         self.continue_animation = False
+        if freeze:
+            self.config(image=self.frames[self.loc])
+            return
         self.config(image="")
 
     def next_frame(self):
