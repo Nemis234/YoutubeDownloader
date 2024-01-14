@@ -135,7 +135,7 @@ class WindowLayout(tk.Frame):
 
         self.gif_label= gif_label = TkImageLabel(self)
         gif_label.grid(row=row,column=1,pady=paddy,padx=paddx)
-        gif_label.set_img(dirname(__file__)+"\\Assets\\LoadingAnimation.gif",(50,50))
+        gif_label.set_img(dirname(__file__)+"\\Assets\\LoadingAnimation.gif",(40,40))
 
         frame=tk.Frame(self,highlightbackground="blue", highlightthickness=2)
         
