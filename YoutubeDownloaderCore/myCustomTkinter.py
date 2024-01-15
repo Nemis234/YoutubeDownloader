@@ -87,8 +87,10 @@ class DropDown(tk.OptionMenu):
 class TkCopyableLabel(ttk.Entry):
     def __init__(self, parent:tk.Misc, text:str, *args, **kwargs) -> None:
         """A ttk.Entry that looks like a ttk.Label."""
+        style = ttk.Style()
+        style.configure("CopyableLabel.TLabel")
         default_options = {
-            'style': 'TLabel', # This means ttk.Label uses a 'TLabel' style
+            'style': 'CopyableLabel.TLabel', # This means ttk.Label uses a 'TLabel' style
             'justify': 'left', # justify to emulate the Messagebox look (centered).
             'state': 'readonly'} # `readonly` to protect the Entry from being overwritten
         for key in default_options:
@@ -339,25 +341,29 @@ class TkMessageDialog(TkNewDialog):
             kwargs["background"] = "white"
         super().__init__(parent, title, *args, **kwargs)
 
-        if not font:
-            font = Font(family="Helvetica", size=10)
-        ttk.Style().configure('TLabel', background=kwargs.pop("background"))
+        """ if not font:
+            font = Font(family="Helvetica", size=10) """
+        style = ttk.Style()
+        style.configure("TkMessageDialog.TLabel",background=kwargs["background"],)
+
+        self.okorcancel = False
+
         self.resizable(False, False)
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
         self.focus_set()
 
-        frame1 = ttk.Frame(self,style="TLabel")
-        label=ttk.Label(frame1,image="::tk::icons::information")
+        frame1 = ttk.Frame(self,style="TkMessageDialog.TLabel")
+        label=ttk.Label(frame1,image="::tk::icons::information",style="TkMessageDialog.TLabel")
         label.pack(side=tk.LEFT, anchor=tk.N)
 
-        frame2 = ttk.Frame(self,style="TLabel")
+        frame2 = ttk.Frame(self,style="TkMessageDialog.TLabel")
         ttk.Label(frame2, 
             text="Please go to this website\nand enter the following code:"
-            ,font=font,anchor=tk.W, justify="left").pack(anchor="w")
-        TkCopyableWeblink(frame2, text=website,font=font).pack()
-        TkCopyableLabel(frame2, text=code,font=font).pack()
+            ,font=font,anchor=tk.W, justify="left",style="TkMessageDialog.TLabel").pack(anchor="w")
+        TkCopyableWeblink(frame2, text=website,font=font,style="TkMessageDialog.TLabel").pack()
+        TkCopyableLabel(frame2, text=code,font=font,style="TkMessageDialog.TLabel").pack()
 
         frame3 = ttk.Frame(self)
         button=ttk.Button(frame3, text="OK", command=self.destroy)
