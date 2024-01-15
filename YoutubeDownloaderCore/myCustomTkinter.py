@@ -366,12 +366,39 @@ class TkMessageDialog(TkNewDialog):
         TkCopyableLabel(frame2, text=code,font=font,style="TkMessageDialog.TLabel").pack()
 
         frame3 = ttk.Frame(self)
-        button=ttk.Button(frame3, text="OK", command=self.destroy)
-        button.pack(side=tk.BOTTOM, anchor=tk.E, padx=5, pady=5)
+
+        cancel_button=ttk.Button(frame3, text="Cancel", command=self.pressed_cancel)
+        cancel_button.pack(side=tk.RIGHT, anchor=tk.E, padx=5, pady=5)
+
+        ok_button=ttk.Button(frame3, text="OK", command=self.pressed_ok)
+        ok_button.pack(side=tk.RIGHT, anchor=tk.E, padx=5, pady=5)
+
         frame1.grid(row=0, column=0, sticky=tk.N+tk.S+tk.W)
         frame2.grid(row=0, column=1, sticky=tk.N+tk.S+tk.E+tk.W,)
         frame3.grid(row=1, column=0, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 
+    def pressed_ok(self):
+        print("ok")
+        self.okorcancel = True
+        self.destroy()
+    def pressed_cancel(self):
+        print("cancel")
+        self.okorcancel = False
+        self.destroy()
+    def show(self):
+        print("waiting")
+        self.wait_window()
+        print("done waiting")
+        return self.okorcancel
+
+def message_dialog(parent: tk.Tk,website:str,code:str, title: str = None,font:Font=None,*args, **kwargs) -> None:
+    """A message dialog that displays a code and a link to a website.
+    The user can copy the code and click the link to go to the website.
+    The dialog has two buttons, OK and Cancel.
+    The dialog will return True if the OK button was pressed, and False if the Cancel button was pressed."""
+    dialog = TkMessageDialog(parent, website, code, title, font, *args, **kwargs)#.show()
+    
+    return dialog.show()
 
 if __name__ == "__main__":
     def testing():
@@ -381,8 +408,9 @@ if __name__ == "__main__":
         def callback():
             
             from tkinter import messagebox
-            hei = TkMessageDialog(parent, "https://www.google.com/devices", "https://www.google.com", "Test")
-            #messagebox.showinfo("Test", "Test\ntest\ntestTest\ntest\ntest")
+            hei = message_dialog(parent, "https://www.google.com/devices", "https://www.google.com", "Test")
+            print(hei)
+            #messagebox.askokcancel("Test", "Test\ntest\ntestTest\ntest\ntest")
         #TkWeblink(hei, text="Click me", link="https://www.google.com").pack()
         #TkCopyableWeblink(hei, text="Click me", link="https://www.google.com").pack()
         #TkCustomEntry(hei, text="this is an example").pack()
