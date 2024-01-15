@@ -1,6 +1,7 @@
 from pytube import YouTube
 #Pathing
-from os.path import exists, dirname
+from os.path import exists, dirname, abspath, join
+import sys
 #Images
 #import requests --Deprecated
 from PIL import Image,ImageTk
@@ -86,7 +87,7 @@ class WebImage:
             img = Image.open(io.BytesIO(raw_data))
         except URLError:
             print("whoops")
-            defaultThumbnail = dirname(__file__)+"\\Assets\\defaultThumbnail.jpg"
+            defaultThumbnail = resource_path(dirname(__file__)+"\\Assets\\defaultThumbnail.jpg")
             with open(defaultThumbnail,"rb") as f:
                 img = Image.open(io.BytesIO(f.read()))
                 
@@ -109,3 +110,16 @@ class WebImage:
             size = self.size
         
         self._image = img.resize(size)
+
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = abspath(".")
+    """ print("base_path: ",base_path)
+    print("relative_path: ",relative_path)
+    print("join(base_path, relative_path): ",join(base_path, relative_path)) """
+    return join(base_path, relative_path)

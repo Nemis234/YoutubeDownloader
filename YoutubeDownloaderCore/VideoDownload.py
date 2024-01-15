@@ -20,7 +20,7 @@ from myCustomTkinter import DropDown, message_dialog, TkCopyableLabel, TkCustomE
 from pytube.innertube import _cache_dir,_token_file,_client_id,_client_secret
 import os,json,time
 #Streams and WebImage classes
-from HelperClasses import Stream, WebImage
+from HelperClasses import Stream, WebImage, resource_path
 #Error handeling
 from CustomExceptions import NoLink, NoConnection
 from pytube import exceptions
@@ -135,7 +135,7 @@ class WindowLayout(tk.Frame):
 
         self.gif_label= gif_label = TkImageLabel(self)
         gif_label.grid(row=row,column=1,pady=paddy,padx=paddx)
-        gif_label.set_img(dirname(__file__)+"\\Assets\\LoadingAnimation.gif",(40,40))
+        gif_label.set_img(resource_path(dirname(__file__)+"\\Assets\\LoadingAnimation.gif"),(40,40))
 
 
         frame=tk.Frame(self)#,highlightbackground="blue", highlightthickness=2)
@@ -218,7 +218,7 @@ class MainWindow(tk.Tk):
         self.size = size_str = f"{int(round(x*size_scale,0))}x{int(round(y*size_scale,0))}"
         MainWindow.size_scale = size_scale
         
-        directory = dirname(__file__)+"\\"
+        directory = resource_path(dirname(__file__)+"\\")
 
         if not exists(directory+"Downloads"):
             makedirs(directory+"Downloads")
@@ -377,11 +377,9 @@ class MainWindow(tk.Tk):
             if not self.have_internet():
                 raise NoConnection
             try:
-
                 yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,
                             use_oauth=use_oauth, allow_oauth_cache=use_oauth)
                 streams = yt.streams
-            
             except exceptions.RegexMatchError:
                 raise NoLink
             except exceptions.AgeRestrictedError:
@@ -724,7 +722,7 @@ class MainWindow(tk.Tk):
                     will_concate:bool = False,path:str="")->None:
         
         if not path:
-            directory = dirname(__file__)+"\\"
+            directory = resource_path(dirname(__file__)+"\\")
 
             if not exists(directory+"Downloads"):
                 makedirs(directory+"Downloads")

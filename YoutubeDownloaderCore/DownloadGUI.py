@@ -18,7 +18,7 @@ import time
 import sys
 from proglog import TqdmProgressBarLogger
 #Stream object
-from HelperClasses import Stream
+from HelperClasses import Stream, resource_path
 #Main window, type checking
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -157,7 +157,7 @@ class DownloadGUI():
 
         self.gif_label= gif_label = TkImageLabel(self.root)
         gif_label.grid(row=row,column=1,padx=10,pady=10)
-        gif_label.set_img(dirname(__file__)+"\\Assets\\LoadingAnimation.gif",(20,20))
+        gif_label.set_img(resource_path(dirname(__file__)+"\\Assets\\LoadingAnimation.gif"),(20,20))
         gif_label.run()
 
         self.window_configure_count = 0
