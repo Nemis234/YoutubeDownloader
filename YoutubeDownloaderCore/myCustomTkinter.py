@@ -109,15 +109,15 @@ class TkCopyableLabel(ttk.Entry):
             kwargs['textvariable'] = self.variable
         
         ttk.Entry.__init__(self, parent, *args, **kwargs)
-        self.configure(width=len(text)+4)
+
     
     
     def pack(self, *args, **kwargs):
         # expand and fill to emulate the Message look (centered). --deprecated
-        """ if not 'expand' in kwargs:
+        if not 'expand' in kwargs:
             kwargs['expand'] = True
         if not 'fill' in kwargs:
-            kwargs['fill'] = tk.BOTH """
+            kwargs['fill'] = tk.BOTH
         super().pack(*args, **kwargs)
 
 class TkCustomEntry(tk.Entry):
@@ -350,7 +350,7 @@ class TkMessageDialog(TkNewDialog):
 
         frame1 = ttk.Frame(self,style="TLabel")
         label=ttk.Label(frame1,image="::tk::icons::information")
-        label.pack(side=tk.LEFT, anchor=tk.N, padx=5, pady=5)
+        label.pack(side=tk.LEFT, anchor=tk.N)
 
         frame2 = ttk.Frame(self,style="TLabel")
         ttk.Label(frame2, 
@@ -362,7 +362,7 @@ class TkMessageDialog(TkNewDialog):
         frame3 = ttk.Frame(self)
         button=ttk.Button(frame3, text="OK", command=self.destroy)
         button.pack(side=tk.BOTTOM, anchor=tk.E, padx=5, pady=5)
-        frame1.grid(row=0, column=0, sticky=tk.N+tk.S+tk.E+tk.W,padx=10)
+        frame1.grid(row=0, column=0, sticky=tk.N+tk.S+tk.W)
         frame2.grid(row=0, column=1, sticky=tk.N+tk.S+tk.E+tk.W,)
         frame3.grid(row=1, column=0, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 
@@ -373,23 +373,16 @@ if __name__ == "__main__":
         parent = tk.Tk()
         #tk.Text(parent).pack()
         def callback():
-            return
+            
             from tkinter import messagebox
-            hei = TkMessageDialog(parent, "https://www.google.com", "https://www.google.com", "Test")
-            messagebox.showinfo("Test", "Test\ntest\ntestTest\ntest\ntest")
+            hei = TkMessageDialog(parent, "https://www.google.com/devices", "https://www.google.com", "Test")
+            #messagebox.showinfo("Test", "Test\ntest\ntestTest\ntest\ntest")
         #TkWeblink(hei, text="Click me", link="https://www.google.com").pack()
         #TkCopyableWeblink(hei, text="Click me", link="https://www.google.com").pack()
         #TkCustomEntry(hei, text="this is an example").pack()
         #hei.center()
-        TkCustomEntry(parent, text="Input here").pack()
 
         tk.Button(parent, text="Click me", command=callback).pack()
-        label = TkImageLabel(parent)
-        label.pack()
-        from os.path import dirname
-        file = dirname(__file__)+"\\Assets\\LoadingAnimation.gif"
-        label.set_img(file)
-        label.run()
         parent.mainloop()
     
     testing()
