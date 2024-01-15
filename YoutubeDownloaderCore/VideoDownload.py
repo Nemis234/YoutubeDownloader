@@ -146,11 +146,11 @@ class WindowLayout(tk.Frame):
         tk_thubmnail = self.thumbnail_obj.tkImage
 
         self.thumbnail_label = thumbnail_label = tk.Label(frame,
-                image=tk_thubmnail,highlightbackground="blue")#,width=image_size[0],height=image_size[1])
                 image=tk_thubmnail)#,highlightbackground="blue")#,width=image_size[0],height=image_size[1])
         thumbnail_label.image = tk_thubmnail
         thumbnail_label.pack()#anchor="nw",padx=1,pady=1)
 
+        title_label = tk.Label(frame,text="Title:",font=path_font)
         title_label.pack(side=tk.LEFT)
         self.video_title= video_title = tk.Label(frame,text="Placeholder",font=path_font)
         video_title.pack(side=tk.LEFT)
@@ -198,15 +198,12 @@ class WindowLayout(tk.Frame):
             command=lambda: root.change_path(frame=self), 
                 bg=MainWindow.button_color,font=default_font)
         path_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=2)
-        
-        self.path_entry = path_entry = TkCopyableLabel(self,text=root.path,font=path_font, width=60)
-            #tk.Entry(self,font=path_font, width=60)
-        """ path_entry.insert(0,root.path)
 
         self.path_entry = path_entry = TkCopyableLabel(self,text=root.path,
             font=path_font, width=40,style="TEntry")
         path_entry.configure(width=len(path_entry.get()))
         path_entry.grid(row=6,column=0,pady=paddy,padx=paddx, columnspan=2)
+
         yt_link_input.focus_set()
         root.hide_show_widgets(self,True)
 
@@ -278,6 +275,7 @@ class MainWindow(tk.Tk):
         if path:
             self.path = path
             frame.path_entry.variable.set(path)
+            frame.path_entry.configure(width=len(path))
             """ .config(state="normal")
             frame.path_entry.delete(0, tk.END)  # Empty the path_entry
             frame.path_entry.insert(0, path)
@@ -362,6 +360,7 @@ class MainWindow(tk.Tk):
             except TypeError as error:
                 frame.running_tasks -= 1
                 raise NoLink
+            use_oauth = False
             try:
                 access_token = None
                 if os.path.exists(_token_file):
@@ -369,7 +368,9 @@ class MainWindow(tk.Tk):
                         data = json.load(f)
                         access_token = data['access_token']
                 if not access_token:
-                    fetch_bearer_token(self)
+                    use_oauth=fetch_bearer_token(self)
+                else:
+                    use_oauth = True
             except error as e:
                 print(e)
             
@@ -378,13 +379,16 @@ class MainWindow(tk.Tk):
             try:
 
                 yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,
-                                use_oauth=True, allow_oauth_cache=True)
+                            use_oauth=use_oauth, allow_oauth_cache=use_oauth)
                 streams = yt.streams
             
             except exceptions.RegexMatchError:
                 raise NoLink
             except exceptions.AgeRestrictedError:
                 messagebox.showwarning("Agerestricted","This video is age restricted\nDownload unavailable")
+                raise Exception
+            except exceptions.VideoPrivate:
+                messagebox.showwarning("Video private","This video is private\nDownload unavailable")
                 raise Exception
             except exceptions.VideoUnavailable as e:
                 messagebox.showwarning("Video unavailable",e.error_string())
@@ -477,6 +481,8 @@ class MainWindow(tk.Tk):
         thumbnail_label = frame.thumbnail_label
         thumbnail_label.config(image=thumbnail_photo)
         thumbnail_label.image = thumbnail_photo
+
+        frame.video_title.configure(text=yt.title)
 
         self.hide_show_widgets(frame,False)
         
@@ -707,7 +713,7 @@ class MainWindow(tk.Tk):
         w = self.winfo_width()
         h = self.winfo_height()
         k = 1 + min(w, h) / 100 
-        im_size = (192//3,108//3)
+        im_size = (192//3.5,108//3.5)
         gif_size = (40//5,40//5)
 
         resize_text(i,k)
@@ -778,8 +784,9 @@ def fetch_bearer_token(parent:WindowLayout=None):
     verification_url = response_data['verification_url']
     user_code = response_data['user_code']
     
-    message = TkMessageDialog(parent,verification_url,user_code,"YouTube verification")
-    parent.wait_window(message)
+    message = message_dialog(parent,verification_url,user_code,"YouTube verification")
+    #parent.wait_window(message)
+    if not message:
         return False
 
     data = {
@@ -803,6 +810,7 @@ def fetch_bearer_token(parent:WindowLayout=None):
     refresh_token:str = response_data['refresh_token']
     expires:int = start_time + response_data['expires_in']
     cache_tokens(access_token=access_token, refresh_token=refresh_token, expires=expires)
+    return True
 
 def run_download(root:MainWindow=None,stream_objects:list[Stream]=None,
                  will_concate:bool=None,size_scale:float = 1, button_color:str = "white"):
