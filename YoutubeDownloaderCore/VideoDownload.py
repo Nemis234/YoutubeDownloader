@@ -15,7 +15,7 @@ from multiprocess.process import active_children
 from multiprocess.context import Process
 import threading
 #Custom tkinter widgets
-from myCustomTkinter import DropDown, TkMessageDialog, TkCopyableLabel, TkCustomEntry, TkImageLabel
+from myCustomTkinter import DropDown, message_dialog, TkCopyableLabel, TkCustomEntry, TkImageLabel
 #Oauth
 from pytube.innertube import _cache_dir,_token_file,_client_id,_client_secret
 import os,json,time
@@ -137,7 +137,8 @@ class WindowLayout(tk.Frame):
         gif_label.grid(row=row,column=1,pady=paddy,padx=paddx)
         gif_label.set_img(dirname(__file__)+"\\Assets\\LoadingAnimation.gif",(40,40))
 
-        frame=tk.Frame(self,highlightbackground="blue", highlightthickness=2)
+
+        frame=tk.Frame(self)#,highlightbackground="blue", highlightthickness=2)
         
         image_size = (int(round(192)),int(round(108)))
         imgUrl = f"https://img.youtube.com/vi/{url[url.find('watch?v=')+8:]}/maxresdefault.jpg"
@@ -146,8 +147,13 @@ class WindowLayout(tk.Frame):
 
         self.thumbnail_label = thumbnail_label = tk.Label(frame,
                 image=tk_thubmnail,highlightbackground="blue")#,width=image_size[0],height=image_size[1])
+                image=tk_thubmnail)#,highlightbackground="blue")#,width=image_size[0],height=image_size[1])
         thumbnail_label.image = tk_thubmnail
         thumbnail_label.pack()#anchor="nw",padx=1,pady=1)
+
+        title_label.pack(side=tk.LEFT)
+        self.video_title= video_title = tk.Label(frame,text="Placeholder",font=path_font)
+        video_title.pack(side=tk.LEFT)
 
         frame2 = tk.Frame(self, highlightbackground="blue")
         
@@ -196,8 +202,10 @@ class WindowLayout(tk.Frame):
         self.path_entry = path_entry = TkCopyableLabel(self,text=root.path,font=path_font, width=60)
             #tk.Entry(self,font=path_font, width=60)
         """ path_entry.insert(0,root.path)
-        path_entry.config(state="readonly") """
-        
+
+        self.path_entry = path_entry = TkCopyableLabel(self,text=root.path,
+            font=path_font, width=40,style="TEntry")
+        path_entry.configure(width=len(path_entry.get()))
         path_entry.grid(row=6,column=0,pady=paddy,padx=paddx, columnspan=2)
         yt_link_input.focus_set()
         root.hide_show_widgets(self,True)
@@ -772,6 +780,7 @@ def fetch_bearer_token(parent:WindowLayout=None):
     
     message = TkMessageDialog(parent,verification_url,user_code,"YouTube verification")
     parent.wait_window(message)
+        return False
 
     data = {
         'client_id': _client_id,
