@@ -22,7 +22,7 @@ class DropDown(tk.OptionMenu):
         # add the callback function to the dropdown
         dd.add_callback(callback)
     """
-    def __init__(self, parent:tk.Tk, options: list, initial_value: str=None,font: Font = None):
+    def __init__(self, parent:tk.Misc, options: list, initial_value: str=None,font: Font = None):
         """
         Constructor for drop down entry
 
@@ -305,7 +305,7 @@ class TkImageLabel(tk.Label):
 
 
 class TkNewDialog(tk.Toplevel):
-    def __init__(self, parent:tk.Tk, title:str=None,*args, **kwargs) -> None:
+    def __init__(self, parent:tk.Misc, title:str=None,*args, **kwargs) -> None:
         if not title:
             title = ""
         #print(kwargs)
@@ -336,7 +336,7 @@ class TkNewDialog(tk.Toplevel):
 
 
 class TkMessageDialog(TkNewDialog):
-    def __init__(self, parent: tk.Tk,website:str,code:str, title: str = None,font:Font=None,*args, **kwargs) -> None:
+    def __init__(self, parent: tk.Misc,website:str,code:str, title: str = None,font:Font=None,*args, **kwargs) -> None:
         if not "background" in kwargs:
             kwargs["background"] = "white"
         super().__init__(parent, title, *args, **kwargs)
@@ -391,7 +391,7 @@ class TkMessageDialog(TkNewDialog):
         print("done waiting")
         return self.okorcancel
 
-def message_dialog(parent: tk.Tk,website:str,code:str, title: str = None,font:Font=None,*args, **kwargs) -> None:
+def message_dialog(parent: tk.Misc,website:str,code:str, title: str = None,font:Font=None,*args, **kwargs) -> None:
     """A message dialog that displays a code and a link to a website.
     The user can copy the code and click the link to go to the website.
     The dialog has two buttons, OK and Cancel.
