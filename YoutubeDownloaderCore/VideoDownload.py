@@ -104,6 +104,18 @@ class WindowLayout(tk.Frame):
         headline = tk.Label(self, text="YouTube nedlasting", font=headline_font)
         headline.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
         
+        def fetch():
+            if threading.active_count() > 1:
+                return
+            def run(root):
+                fetch_bearer_token(root)
+
+            threading.Thread(target=run,args=(self.root,)).start()
+        
+        login_button = tk.Button(self,text="Login",command=fetch,
+            bg = MainWindow.button_color,font=path_font)
+        login_button.grid(row=row,column=1,pady=paddy,padx=paddx+30,sticky="e")
+
         row = 2
         video_label = tk.Label(self,text="Videolink eller ID: ", font=default_font)
         video_label.grid(row=row,column=0,pady=paddy,padx=paddx)
@@ -138,72 +150,74 @@ class WindowLayout(tk.Frame):
         gif_label.set_img(dirname(__file__)+"\\Assets\\LoadingAnimation.gif",(40,40))
 
 
-        frame=tk.Frame(self)#,highlightbackground="blue", highlightthickness=2)
+        thumb_frame=tk.Frame(self)#,highlightbackground="blue", highlightthickness=2)
         
         image_size = (int(round(192)),int(round(108)))
         imgUrl = f"https://img.youtube.com/vi/{url[url.find('watch?v=')+8:]}/maxresdefault.jpg"
         self.thumbnail_obj= WebImage(imgUrl,image_size)
         tk_thubmnail = self.thumbnail_obj.tkImage
 
-        self.thumbnail_label = thumbnail_label = tk.Label(frame,
+        self.thumbnail_label = thumbnail_label = tk.Label(thumb_frame,
                 image=tk_thubmnail)#,highlightbackground="blue")#,width=image_size[0],height=image_size[1])
         thumbnail_label.image = tk_thubmnail
         thumbnail_label.pack()#anchor="nw",padx=1,pady=1)
 
-        title_label = tk.Label(frame,text="Title:",font=path_font)
+        title_label = tk.Label(thumb_frame,text="Title:",font=path_font)
         title_label.pack(side=tk.LEFT)
-        self.video_title= video_title = tk.Label(frame,text="Placeholder",font=path_font)
+        self.video_title= video_title = tk.Label(thumb_frame,text="Placeholder",font=path_font)
         video_title.pack(side=tk.LEFT)
 
-        frame2 = tk.Frame(self, highlightbackground="blue")
+        options_frame = tk.Frame(self, highlightbackground="blue")
         
 
         row = 1
-        label = tk.Label(frame2,text="Filformat: ", font=default_font)
+        label = tk.Label(options_frame,text="Filformat: ", font=default_font)
         label.grid(row=row,column=0,pady=paddy,padx=paddx)
 
         video_type_options = ["Placeholder"]
 
-        self.dropdown_type = dropdown_type = DropDown(frame2,video_type_options,font=default_font)
+        self.dropdown_type = dropdown_type = DropDown(options_frame,video_type_options,font=default_font)
         dropdown_type.add_callback(lambda: type_dropdown_func(root=root))
         dropdown_type.grid(row=row,column=1,pady=paddy,padx=paddx)
         
 
         row = 2
-        label_res = tk.Label(frame2,text="Videooppløsning: ", font=default_font)
+        label_res = tk.Label(options_frame,text="Videooppløsning: ", font=default_font)
         label_res.grid(row=row,column=0,pady=paddy,padx=paddx)
 
         options_res = ["720p","480p","360p","240p","144p"]
         
-        self.dropdown_vid_res=dropdown_vid_res = DropDown(frame2,options_res,font=default_font)
+        self.dropdown_vid_res=dropdown_vid_res = DropDown(options_frame,options_res,font=default_font)
         dropdown_vid_res.grid(row=row,column=1,pady=paddy,padx=paddx)
 
         row = 3
-        label_qual = tk.Label(frame2,text="Lydkvalitet: ", font=default_font)
+        label_qual = tk.Label(options_frame,text="Lydkvalitet: ", font=default_font)
         label_qual.grid(row=row,column=0,pady=paddy,padx=paddx)
 
         options_qual = ["70kbps","160kbps"]
         
-        self.dropdown_aud = dropdown_aud = DropDown(frame2,options_qual,font=default_font)
+        self.dropdown_aud = dropdown_aud = DropDown(options_frame,options_qual,font=default_font)
         dropdown_aud.grid(row=row,column=1,pady=paddy,padx=paddx)
 
-        frame.grid(row=4,column=1, sticky="n")#,pady=paddy*4)
-        frame2.grid(row=4,column=0,columnspan=1)
+        thumb_frame.grid(row=4,column=1, sticky="n")#,pady=paddy*4)
+        options_frame.grid(row=4,column=0,columnspan=1)
 
-        self.submit_button = submit_button = tk.Button(self, text="Submit", 
+        submit_frame = tk.Frame(self)
+
+        self.submit_button = submit_button = tk.Button(submit_frame, text="Submit", 
             command= lambda: root.start_download(frame=self), bg=MainWindow.button_color,font=default_font)
         submit_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=1)
 
-        path_button = tk.Button(self, text="Change path", 
+        path_button = tk.Button(submit_frame, text="Change path", 
             command=lambda: root.change_path(frame=self), 
                 bg=MainWindow.button_color,font=default_font)
         path_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=2)
 
-        self.path_entry = path_entry = TkCopyableLabel(self,text=root.path,
+        self.path_entry = path_entry = TkCopyableLabel(submit_frame,text=root.path,
             font=path_font, width=40,style="TEntry")
         path_entry.configure(width=len(path_entry.get()))
         path_entry.grid(row=6,column=0,pady=paddy,padx=paddx, columnspan=2)
-
+        submit_frame.grid(row=5,column=0,columnspan=2, sticky="n")
         yt_link_input.focus_set()
         root.hide_show_widgets(self,True)
 
@@ -550,9 +564,9 @@ class MainWindow(tk.Tk):
 
     def hide_show_widgets(self,frame:tk.Frame,hide=True)->None:
         liste = frame.winfo_children()
-
+        liste = [x for x in liste if "!frame" in str(x)]
         
-        for i in range(5,len(liste)):
+        for i in range(len(liste)):
             if hide:
                 liste[i].grid_remove()
             else:
