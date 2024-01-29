@@ -254,6 +254,8 @@ class MainWindow(tk.Tk):
         self.yt = None
         self.link = ""
         self.streams = None
+        self.use_oauth = False
+        self.asked_oauth = False
 
         self.audio_bool = False
 
@@ -360,7 +362,7 @@ class MainWindow(tk.Tk):
             except TypeError as error:
                 frame.running_tasks -= 1
                 raise NoLink
-            use_oauth = False
+            
             try:
                 access_token = None
                 if os.path.exists(_token_file):
@@ -368,18 +370,19 @@ class MainWindow(tk.Tk):
                         data = json.load(f)
                         access_token = data['access_token']
                 if not access_token:
-                    use_oauth=fetch_bearer_token(self)
+                    if not self.asked_oauth:
+                        self.use_oauth=fetch_bearer_token(self)
+                        self.asked_oauth = True
                 else:
-                    use_oauth = True
+                    self.use_oauth = True
             except error as e:
                 print(e)
             
             if not self.have_internet():
                 raise NoConnection
             try:
-
                 yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,
-                            use_oauth=use_oauth, allow_oauth_cache=use_oauth)
+                            use_oauth=self.use_oauth, allow_oauth_cache=self.use_oauth)
                 streams = yt.streams
             
             except exceptions.RegexMatchError:
