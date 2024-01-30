@@ -1,5 +1,6 @@
 from __future__ import annotations
 from pytube import request
+import pytube
 #Pathing
 from os import remove
 from os.path import exists, dirname
@@ -45,7 +46,7 @@ class MyBarLogger(TqdmProgressBarLogger):
     percentage = 0
     def __init__(self,ui:DownloadGUI):
         super().__init__(init_state=None, bars=None, ignored_bars=("chunk"),print_messages=False,
-                    logged_bars='all', min_time_interval=0.5, ignore_bars_under=100)
+                    logged_bars='all', min_time_interval=1, ignore_bars_under=100)
         self.ui = ui
     
     def callback(self, **changes):
@@ -73,7 +74,7 @@ class MyBarLogger(TqdmProgressBarLogger):
 
 class DownloadGUI():
     numb_bars = 0
-    def __init__(self,root:MainWindow = None,stream_objects:list[Stream]=None,
+    def __init__(self,root:MainWindow|None,stream_objects:list[Stream],
                  will_concate:bool = False, size_scale:float = 0.4, button_color:str = "white"):
         # Make the GUI
         print("Starting gui")
@@ -85,8 +86,6 @@ class DownloadGUI():
             self.size_scale = size_scale = 1
             self.root = tk.Tk()
             button_color = "white" """
-        if stream_objects == None:
-            return
         self.size_scale = size_scale if size_scale else 1
         self.button_color = button_color if button_color else "white"
         self.root = tk.Tk()#root if root else tk.Tk()
@@ -114,7 +113,7 @@ class DownloadGUI():
         style.configure('text.Horizontal.TProgressbar', text='0 %', font=default_font)
 
         self.percent = 0
-        self.progress = ttk.Progressbar(self.root,style='text.Horizontal.TProgressbar', orient = 'horizontal', length = int(round(600*size_scale,0)), mode = 'determinate', max = 100)
+        self.progress = ttk.Progressbar(self.root,style='text.Horizontal.TProgressbar', orient = 'horizontal', length = int(round(600*size_scale,0)), mode = 'determinate', maximum = 100)
         DownloadGUI.numb_bars += 1
 
         self.numb = int(float(DownloadGUI.numb_bars))
@@ -192,6 +191,9 @@ class DownloadGUI():
             filename = stream_obj.filename
 
             stream = yt.streams.get_by_itag(stream_number)
+            if stream == None:
+                messagebox.showerror("Download not found","The download was not found\nPlease try again")
+                return self.root.destroy()
             print("stream: ",stream)
             stream_obj.postfix = postfix = stream.mime_type.split("/")[1]
             print("file type",postfix)
@@ -320,7 +322,7 @@ class DownloadGUI():
         self.destroy_gui()
         return
 
-    def concatenate_files(video_file, audio_file, output_file):
+    def concatenate_files(self,video_file, audio_file, output_file):
         return
         # Run MoviePy command as a subprocess
         command = f'moviepy -i "{file1}" -i "{file2}" -filter_complex concat -c:v libx264 -crf 23 -c:a aac -b:a 192k "{output_file}"'
@@ -399,14 +401,19 @@ class DownloadGUI():
     def window_state_changed(self,event=None):
         def resize_text(i,k):
             i = int(i*k)
-            if i == self.default_font.config()["size"]:
+            font = self.default_font.config()
+            if font == None:
+                return
+            if i == font["size"]:
                 return
             
             self.default_font.config(size=i)
         
         def resize_progress(size,k):
-            
-            if int(round(size*k,0)) == self.progress.config()["length"]:
+            progressbar = self.progress.config()
+            if progressbar == None:
+                return
+            if int(round(size*k,0)) == progressbar["length"]:
                 return
             self.progress.config(length=int(round(size*k,0)))
 
@@ -599,7 +606,7 @@ class DownloadThread(threading.Thread):
             print("A network error has occured\nTry again later")
         except FileNotFoundError as e:
             messagebox.showerror("File not found","The file was not found\nPlease try again")
-            print("The file was not found\nPlease try again")
+            print("The file was not found\nPlease try again",e)
         except Exception as error:
             messagebox.showerror("Unknown error","An unexpected error has occured\nPlease try again")
             print("An exeption was made with the error:",error)
