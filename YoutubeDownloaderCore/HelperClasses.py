@@ -13,14 +13,14 @@ from typing import Literal
 
 class Stream:
     def __init__(self,yt:YouTube,number:int, type:Literal["video","audio"]="video", 
-                 filename:str=None, prefix:str=None, postfix:str=None) -> None:
+                 filename:str="", prefix:str="", postfix:str="") -> None:
         self.yt = yt
         self.type = type
         self.number = number
         self.filename = filename
         self.prefix = prefix
         self.postfix = postfix
-        self.directory = None
+        self.directory = ""
 
     def __str__(self) -> str:
         string = ""
@@ -95,7 +95,7 @@ class WebImage:
         self._image=self._orig_img = img
         
 
-    def resize(self,size:tuple[int,int]=None,use_previous:bool=False):
+    def resize(self,size:tuple[int,int]=(0,0),use_previous:bool=False):
         """In-place function, if no arguments are passed,
           returns current size"""
         img = self._orig_img
@@ -104,7 +104,7 @@ class WebImage:
         
         if not use_previous:
             self.size = size
-            if not size:
+            if size == (0,0) or not size:
                 return self.size
         else:
             size = self.size

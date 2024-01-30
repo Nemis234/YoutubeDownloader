@@ -4,6 +4,7 @@ from tkinter.font import Font
 import webbrowser # for opening links
 from PIL import Image, ImageTk
 from itertools import count
+from typing import Callable, Type, TypeVar
 
 
 class DropDown(tk.OptionMenu):
@@ -22,7 +23,7 @@ class DropDown(tk.OptionMenu):
         # add the callback function to the dropdown
         dd.add_callback(callback)
     """
-    def __init__(self, parent:tk.Tk, options: list, initial_value: str=None,font: Font = None):
+    def __init__(self, parent:tk.Misc, options: list, initial_value: str="",font: Font|None =None ):
         """
         Constructor for drop down entry
 
@@ -44,7 +45,7 @@ class DropDown(tk.OptionMenu):
 
         self.callback = None
 
-    def add_callback(self, callback: callable):
+    def add_callback(self, callback: Callable):
         """
         Add a callback on change
 
@@ -173,7 +174,7 @@ class TkCustomEntry(tk.Entry):
         return tk.Entry.get(self)
 
 class TkWeblink(tk.Label):
-    def __init__(self, parent:tk.Misc, text:str, link:str=None, *args, **kwargs) -> None:
+    def __init__(self, parent:tk.Misc, text:str, link:str="", *args, **kwargs) -> None:
         """A label that opens a web link when clicked.
         If no link is spesified, the label text will be used as the link."""
 
@@ -204,7 +205,7 @@ class TkWeblink(tk.Label):
         self._entered = False
 
 class TkCopyableWeblink(TkCopyableLabel, TkWeblink):
-    def __init__(self, parent: tk.Misc, text: str,link:str=None, *args, **kwargs) -> None:
+    def __init__(self, parent: tk.Misc, text: str,link:str="", *args, **kwargs) -> None:
         """An Entry widget that opens a web link when clicked.
         If no link is spesified, the label text will be used as the link.
         It is possible to highlight the text.
@@ -305,9 +306,7 @@ class TkImageLabel(tk.Label):
 
 
 class TkNewDialog(tk.Toplevel):
-    def __init__(self, parent:tk.Tk, title:str=None,*args, **kwargs) -> None:
-        if not title:
-            title = ""
+    def __init__(self, parent:tk.Tk|tk.Toplevel, title:str="",*args, **kwargs) -> None:
         #print(kwargs)
 
         tk.Toplevel.__init__(self, parent, *args, **kwargs)
@@ -334,9 +333,8 @@ class TkNewDialog(tk.Toplevel):
         y = self.winfo_screenheight() // 2 - win_height // 2
         self.geometry('{}x{}+{}+{}'.format(width, height, x, y))
 
-
 class TkMessageDialog(TkNewDialog):
-    def __init__(self, parent: tk.Tk,website:str,code:str, title: str = None,font:Font=None,*args, **kwargs) -> None:
+    def __init__(self, parent: tk.Tk|tk.Toplevel,website:str,code:str, title: str = "",font:Font|None=None,*args, **kwargs) -> None:
         if not "background" in kwargs:
             kwargs["background"] = "white"
         super().__init__(parent, title, *args, **kwargs)
@@ -361,7 +359,7 @@ class TkMessageDialog(TkNewDialog):
         frame2 = ttk.Frame(self,style="TkMessageDialog.TLabel")
         ttk.Label(frame2, 
             text="Please go to this website\nand enter the following code:"
-            ,font=font,anchor=tk.W, justify="left",style="TkMessageDialog.TLabel").pack(anchor="w")
+            ,anchor=tk.W, justify="left",style="TkMessageDialog.TLabel").pack(anchor="w")
         TkCopyableWeblink(frame2, text=website,font=font,style="TkMessageDialog.TLabel").pack()
         TkCopyableLabel(frame2, text=code,font=font,style="TkMessageDialog.TLabel").pack()
 
@@ -391,7 +389,7 @@ class TkMessageDialog(TkNewDialog):
         print("done waiting")
         return self.okorcancel
 
-def message_dialog(parent: tk.Tk,website:str,code:str, title: str = None,font:Font=None,*args, **kwargs) -> None:
+def message_dialog(parent: tk.Tk|tk.Toplevel,website:str,code:str, title: str = "",font:Font|None=None,*args, **kwargs) -> bool:
     """A message dialog that displays a code and a link to a website.
     The user can copy the code and click the link to go to the website.
     The dialog has two buttons, OK and Cancel.
