@@ -1,6 +1,7 @@
 from __future__ import annotations
 #Youtube downloader
 from pytube import YouTube, request
+import pytube
 #Pathing
 from os import makedirs #,listdir --Deprecated
 from os.path import dirname,exists
@@ -60,7 +61,7 @@ class WindowLayout(tk.Frame):
 
         self.all_fonts = [default_font,headline_font,path_font]
         
-        def type_dropdown_func(event=None,root:tk.Tk=None):
+        def type_dropdown_func(root:MainWindow):
             key = dropdown_type.get()
             video_value = root.video_attributes[key]
 
@@ -241,7 +242,7 @@ class MainWindow(tk.Tk):
 
         self.layout = layout = WindowLayout(self)
         layout.pack(fill="both", expand=True)
-        self:MainWindow = self.initPopup(self,size_str,focus=False, resizable=True)
+        self.initPopup(self,size_str,focus=False, resizable=True)
         
 
         self.unbind_all("<Tab>")
@@ -265,7 +266,7 @@ class MainWindow(tk.Tk):
         self.audio_type_quality = list()
         self.video_type_res = list()
 
-        self.yt = None
+        self.yt:YouTube
         self.link = ""
         self.streams = None
         self.use_oauth = False
@@ -281,12 +282,12 @@ class MainWindow(tk.Tk):
 
         if not self.have_internet(): 
             if messagebox.askretrycancel("No connection","No connection to YouTube found"):
-                self.retry_setup(None,layout)
+                self.retry_setup(layout)
             else:
                 self.destroy()
                 return
     
-    def change_path(self,event=None,frame:WindowLayout=None)->None:
+    def change_path(self,frame:WindowLayout)->None:
         path = filedialog.askdirectory()
         if path:
             self.path = path
@@ -298,11 +299,11 @@ class MainWindow(tk.Tk):
             frame.path_entry.config(state="readonly") """
         
      
-    def onKey(self,event=None,frame:WindowLayout=None)->None:
+    def onKey(self,event:tk.Event,frame:WindowLayout)->None:
         if not frame:
             return
         main_widgets = frame.winfo_children()
-        iterate_widgets:list[tk.Entry|tk.Label|tk.Button|DropDown] = []
+        iterate_widgets:list[tk.Entry|tk.Label|tk.Button|DropDown|tk.Widget] = []
 
         for widget in main_widgets:
             if not widget.winfo_ismapped():
@@ -327,7 +328,7 @@ class MainWindow(tk.Tk):
             iterate_widgets.append(widget)  
             
         main_widgets = iterate_widgets
-        focused_widget:tk.Widget = frame.focus_get()
+        focused_widget:tk.Misc|None = frame.focus_get()
         print(focused_widget)
         
         if event.keysym == "Return":
@@ -347,16 +348,17 @@ class MainWindow(tk.Tk):
                     if liste[i] == liste[-1]:
                         return 0
                     return i+1
+            return 0
 
         main_widgets[nextToFocus(focused_widget,main_widgets,event)].focus_set()
         return 
     
-    def submit_link(self,event=None,frame:WindowLayout=None)->None:
+    def submit_link(self,frame:WindowLayout)->None:
         yt_streams, yt, link = None,None,None
         def placeholder(*a,**kw):
             print("hi")
         
-        def getYtObject()->tuple[YouTube,list[Stream],str]:
+        def getYtObject()->tuple[YouTube,pytube.StreamQuery,str]:
             link = frame.yt_link_input.get(get_default=True)
 
             if link.lower() == "placeholder":
@@ -389,7 +391,7 @@ class MainWindow(tk.Tk):
                         self.asked_oauth = True
                 else:
                     self.use_oauth = True
-            except error as e:
+            except Exception as e:
                 print(e)
             
             if not self.have_internet():
@@ -408,7 +410,7 @@ class MainWindow(tk.Tk):
                 messagebox.showwarning("Video private","This video is private\nDownload unavailable")
                 raise Exception
             except exceptions.VideoUnavailable as e:
-                messagebox.showwarning("Video unavailable",e.error_string())
+                messagebox.showwarning("Video unavailable",e.error_string)
                 raise Exception
             except URLError as e:
                 messagebox.showwarning("Network error",f"A network error has occured with the following exception:\n{e}")
@@ -442,14 +444,13 @@ class MainWindow(tk.Tk):
                 return
             
         else:
-            yt_streams:list[pytube.Stream]|None = self.streams
+            yt_streams:pytube.StreamQuery|None = self.streams
         streams = []
         if yt_streams == None or yt==None:
             return
         
         for x in yt_streams:
             single_stream = []
-            import pytube
             
             try:
                 single_stream.append(x.itag)
@@ -506,7 +507,7 @@ class MainWindow(tk.Tk):
         frame.running_tasks -= 1
         return 
 
-    def start_download(self,event=None,frame:WindowLayout=None)->None:
+    def start_download(self,frame:WindowLayout)->None:
         vid_type = frame.dropdown_type.get()
         vid_qual = frame.dropdown_vid_res.get()
         aud_qual = frame.dropdown_aud.get()
@@ -573,15 +574,15 @@ class MainWindow(tk.Tk):
                 liste[i].grid()
 
 
-    def initPopup(self:object=None, root:tk.Tk = None,wid:str="300x400", 
-                  focus:bool=False, title: str = "", resizable:bool = False) -> tk.Tk:
+    def initPopup(self:object, root:tk.Tk,wid:str="300x400", 
+                  focus:bool=False, title: str = "", resizable:bool = False) -> tk.Toplevel|tk.Tk|None:
         """Lager et tkinter vindu sentrert på skjermen, uansett størrelse. 
         Hvis root ikke er definert, leger et nytt vindu som blir lukket når hovedvinduet lukkes
         \n:focus: om vinduet skal lukkes når brukeren klikker av
         \n:root: tkinter vinduet som skal bli modifisert, ofte hovedvinduet
         \n:title: tittelen på vinduet"""
 
-        def center(win:tk.Tk)->None:
+        def center(win:tk.Tk|tk.Toplevel)->None:
             """
             centers a tkinter window on the monitor
             :param win: the main window or Toplevel window to center
@@ -623,7 +624,7 @@ class MainWindow(tk.Tk):
         if root == None:
             return tkPopup
 
-        return tkPopup
+        
 
     def raise_toplevel_windows(self,event=None):
         if event == "<FocusIn>" and self.focusedout:
@@ -657,7 +658,7 @@ class MainWindow(tk.Tk):
         finally:
             conn.close()
  
-    def retry_setup(self,event=None,frame:WindowLayout=None)->None:
+    def retry_setup(self,frame:WindowLayout)->None:
         if not frame:
             return
         def destroy_widgets(frame:WindowLayout):
@@ -684,7 +685,7 @@ class MainWindow(tk.Tk):
             self.state('zoomed')
         return
 
-    def window_state_changed(self,event=None,frame:WindowLayout=None)->None:
+    def window_state_changed(self,event,frame:WindowLayout)->None:
         def resize_text(i,k):
             i = int(i*k)
             if i == frame.default_font.config()["size"]:
@@ -781,7 +782,7 @@ def cache_tokens(access_token:str, refresh_token:str, expires:int)->None:
     with open(_token_file, 'w') as f:
         json.dump(data, f)
 
-def fetch_bearer_token(parent:WindowLayout=None):
+def fetch_bearer_token(parent:MainWindow):
     """Fetch an OAuth token. Modified method from pytube\n\nWIP"""
     # Subtracting 30 seconds is arbitrary to avoid potential time discrepencies
     start_time = int(time.time() - 30)
@@ -829,8 +830,8 @@ def fetch_bearer_token(parent:WindowLayout=None):
     cache_tokens(access_token=access_token, refresh_token=refresh_token, expires=expires)
     return True
 
-def run_download(root:MainWindow=None,stream_objects:list[Stream]=None,
-                 will_concate:bool=None,size_scale:float = 1, button_color:str = "white"):
+def run_download(root:MainWindow,stream_objects:list[Stream],
+                 will_concate:bool,size_scale:float = 1, button_color:str = "white"):
     DownloadGUI(root,stream_objects,will_concate,size_scale,button_color)
 
 if __name__ == "__main__":
