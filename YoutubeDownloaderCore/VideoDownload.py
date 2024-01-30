@@ -333,7 +333,7 @@ class MainWindow(tk.Tk):
         
         if event.keysym == "Return":
             for widget in main_widgets:
-                    if widget == focused_widget and "!button" in str(widget):
+                    if widget == focused_widget and type(widget) == tk.Button:
                         widget.invoke()
                         return 
 
@@ -661,9 +661,9 @@ class MainWindow(tk.Tk):
     def retry_setup(self,frame:WindowLayout)->None:
         if not frame:
             return
-        def destroy_widgets(frame:WindowLayout):
+        def destroy_widgets(frame:tk.Frame):
             for widget in frame.winfo_children():
-                if "!frame" in str(widget):
+                if type(widget) == tk.Frame:
                     destroy_widgets(widget)
                 else:
                     widget.destroy()
@@ -688,7 +688,10 @@ class MainWindow(tk.Tk):
     def window_state_changed(self,event,frame:WindowLayout)->None:
         def resize_text(i,k):
             i = int(i*k)
-            if i == frame.default_font.config()["size"]:
+            font = frame.default_font.config()
+            if font is None:
+                return
+            if i == font["size"]:
                 return
             
             for font in frame.all_fonts:

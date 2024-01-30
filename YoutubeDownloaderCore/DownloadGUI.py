@@ -612,6 +612,10 @@ class DownloadThread(threading.Thread):
             print("An exeption was made with the error:",error)
 
 if __name__ == "__main__":
-    DownloadGUI(1,stream_objects=[Stream("https://www.youtube.com/watch?v=5qap5aO4i9A",18,"video","C:\\Users\\ny\\Desktop\\")])
+    yt = pytube.YouTube("https://www.youtube.com/watch?v=0IhmkF50VgE")
+    print(len(yt.streams))
+    stream = Stream(yt,18,"video",r"hei",postfix="mp4")
+    stream.set_directory(r"YoutubeDownloaderCore\Downloads\\")
+    DownloadGUI(None,stream_objects=[stream,])
     """ from VideoDownload import MainWindow
     MainWindow().mainloop() """
