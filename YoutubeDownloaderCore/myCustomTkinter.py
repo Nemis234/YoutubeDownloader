@@ -4,6 +4,7 @@ from tkinter.font import Font
 import webbrowser # for opening links
 from PIL import Image, ImageTk
 from itertools import count
+from typing import Callable
 
 class DropDown(tk.OptionMenu):
     """
@@ -43,13 +44,16 @@ class DropDown(tk.OptionMenu):
 
         self.callback = None
 
-    def add_callback(self, callback: callable):
+    def add_callback(self, callback: Callable):
         """
         Add a callback on change
 
         :param callback: a callable function
         :return: 
         """
+        if not callable(callback):
+            raise TypeError("callback must be callable")
+        
         def internal_callback(*args):
             callback()
 
@@ -124,15 +128,14 @@ class TkCopyableLabel(ttk.Entry):
         
         ttk.Entry.__init__(self, parent, *args, **kwargs)
 
-    
-    
-    def pack(self, *args, **kwargs):
-        # expand and fill to emulate the Message look (centered). --deprecated
-        if not 'expand' in kwargs:
-            kwargs['expand'] = True
-        if not 'fill' in kwargs:
-            kwargs['fill'] = tk.BOTH
-        super().pack(*args, **kwargs)
+    def set(self, value:str) -> None:
+        """
+        Sets the text in the entry
+
+        :param value: The text to set\n
+        :return:\n
+        """
+        self.variable.set(value)
 
 class TkCustomEntry(tk.Entry):
     """

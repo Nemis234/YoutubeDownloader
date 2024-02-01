@@ -784,7 +784,7 @@ def fetch_bearer_token(parent:WindowLayout=None):
     verification_url = response_data['verification_url']
     user_code = response_data['user_code']
     
-    message = message_dialog(parent,verification_url,user_code,"YouTube verification")
+    message = message_dialog(parent,website=verification_url,text=user_code,titel="YouTube verification")
     #parent.wait_window(message)
     if not message:
         return False
