@@ -1,6 +1,7 @@
 from __future__ import annotations
 #Youtube downloader
 from pytube import YouTube, request
+import pytube
 #Pathing
 from os import makedirs #,listdir --Deprecated
 from os.path import dirname,exists
@@ -60,7 +61,7 @@ class WindowLayout(tk.Frame):
 
         self.all_fonts = [default_font,headline_font,path_font]
         
-        def type_dropdown_func(event=None,root:tk.Tk=None):
+        def type_dropdown_func(root:MainWindow):
             key = dropdown_type.get()
             video_value = root.video_attributes[key]
 
@@ -104,6 +105,18 @@ class WindowLayout(tk.Frame):
         headline = tk.Label(self, text="YouTube nedlasting", font=headline_font)
         headline.grid(row=row,column=0,columnspan=2,pady=paddy,padx=paddx)
         
+        def fetch():
+            if threading.active_count() > 1:
+                return
+            def run(root):
+                fetch_bearer_token(root)
+
+            threading.Thread(target=run,args=(self.root,)).start()
+        
+        login_button = tk.Button(self,text="Login",command=fetch,
+            bg = MainWindow.button_color,font=path_font)
+        login_button.grid(row=row,column=1,pady=paddy,padx=paddx+30,sticky="e")
+
         row = 2
         video_label = tk.Label(self,text="Videolink eller ID: ", font=default_font)
         video_label.grid(row=row,column=0,pady=paddy,padx=paddx)
@@ -138,72 +151,74 @@ class WindowLayout(tk.Frame):
         gif_label.set_img(dirname(__file__)+"\\Assets\\LoadingAnimation.gif",(40,40))
 
 
-        frame=tk.Frame(self)#,highlightbackground="blue", highlightthickness=2)
+        thumb_frame=tk.Frame(self)#,highlightbackground="blue", highlightthickness=2)
         
         image_size = (int(round(192)),int(round(108)))
         imgUrl = f"https://img.youtube.com/vi/{url[url.find('watch?v=')+8:]}/maxresdefault.jpg"
         self.thumbnail_obj= WebImage(imgUrl,image_size)
         tk_thubmnail = self.thumbnail_obj.tkImage
 
-        self.thumbnail_label = thumbnail_label = tk.Label(frame,
+        self.thumbnail_label = thumbnail_label = tk.Label(thumb_frame,
                 image=tk_thubmnail)#,highlightbackground="blue")#,width=image_size[0],height=image_size[1])
         thumbnail_label.image = tk_thubmnail
         thumbnail_label.pack()#anchor="nw",padx=1,pady=1)
 
-        title_label = tk.Label(frame,text="Title:",font=path_font)
+        title_label = tk.Label(thumb_frame,text="Title:",font=path_font)
         title_label.pack(side=tk.LEFT)
-        self.video_title= video_title = tk.Label(frame,text="Placeholder",font=path_font)
+        self.video_title= video_title = tk.Label(thumb_frame,text="Placeholder",font=path_font)
         video_title.pack(side=tk.LEFT)
 
-        frame2 = tk.Frame(self, highlightbackground="blue")
+        options_frame = tk.Frame(self, highlightbackground="blue")
         
 
         row = 1
-        label = tk.Label(frame2,text="Filformat: ", font=default_font)
+        label = tk.Label(options_frame,text="Filformat: ", font=default_font)
         label.grid(row=row,column=0,pady=paddy,padx=paddx)
 
         video_type_options = ["Placeholder"]
 
-        self.dropdown_type = dropdown_type = DropDown(frame2,video_type_options,font=default_font)
+        self.dropdown_type = dropdown_type = DropDown(options_frame,video_type_options,font=default_font)
         dropdown_type.add_callback(lambda: type_dropdown_func(root=root))
         dropdown_type.grid(row=row,column=1,pady=paddy,padx=paddx)
         
 
         row = 2
-        label_res = tk.Label(frame2,text="Videooppløsning: ", font=default_font)
+        label_res = tk.Label(options_frame,text="Videooppløsning: ", font=default_font)
         label_res.grid(row=row,column=0,pady=paddy,padx=paddx)
 
         options_res = ["720p","480p","360p","240p","144p"]
         
-        self.dropdown_vid_res=dropdown_vid_res = DropDown(frame2,options_res,font=default_font)
+        self.dropdown_vid_res=dropdown_vid_res = DropDown(options_frame,options_res,font=default_font)
         dropdown_vid_res.grid(row=row,column=1,pady=paddy,padx=paddx)
 
         row = 3
-        label_qual = tk.Label(frame2,text="Lydkvalitet: ", font=default_font)
+        label_qual = tk.Label(options_frame,text="Lydkvalitet: ", font=default_font)
         label_qual.grid(row=row,column=0,pady=paddy,padx=paddx)
 
         options_qual = ["70kbps","160kbps"]
         
-        self.dropdown_aud = dropdown_aud = DropDown(frame2,options_qual,font=default_font)
+        self.dropdown_aud = dropdown_aud = DropDown(options_frame,options_qual,font=default_font)
         dropdown_aud.grid(row=row,column=1,pady=paddy,padx=paddx)
 
-        frame.grid(row=4,column=1, sticky="n")#,pady=paddy*4)
-        frame2.grid(row=4,column=0,columnspan=1)
+        thumb_frame.grid(row=4,column=1, sticky="n")#,pady=paddy*4)
+        options_frame.grid(row=4,column=0,columnspan=1)
 
-        self.submit_button = submit_button = tk.Button(self, text="Submit", 
+        submit_frame = tk.Frame(self)
+
+        self.submit_button = submit_button = tk.Button(submit_frame, text="Submit", 
             command= lambda: root.start_download(frame=self), bg=MainWindow.button_color,font=default_font)
         submit_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=1)
 
-        path_button = tk.Button(self, text="Change path", 
+        path_button = tk.Button(submit_frame, text="Change path", 
             command=lambda: root.change_path(frame=self), 
                 bg=MainWindow.button_color,font=default_font)
         path_button.grid(row=5,column=0,pady=paddy,padx=paddx, columnspan=2)
 
-        self.path_entry = path_entry = TkCopyableLabel(self,text=root.path,
+        self.path_entry = path_entry = TkCopyableLabel(submit_frame,text=root.path,
             font=path_font, width=40,style="TEntry")
         path_entry.configure(width=len(path_entry.get()))
         path_entry.grid(row=6,column=0,pady=paddy,padx=paddx, columnspan=2)
-
+        submit_frame.grid(row=5,column=0,columnspan=2, sticky="n")
         yt_link_input.focus_set()
         root.hide_show_widgets(self,True)
 
@@ -227,7 +242,7 @@ class MainWindow(tk.Tk):
 
         self.layout = layout = WindowLayout(self)
         layout.pack(fill="both", expand=True)
-        self:MainWindow = self.initPopup(self,size_str,focus=False, resizable=True)
+        self.initPopup(self,size_str,focus=False, resizable=True)
         
 
         self.unbind_all("<Tab>")
@@ -251,9 +266,11 @@ class MainWindow(tk.Tk):
         self.audio_type_quality = list()
         self.video_type_res = list()
 
-        self.yt = None
+        self.yt:YouTube
         self.link = ""
         self.streams = None
+        self.use_oauth = False
+        self.asked_oauth = False
 
         self.audio_bool = False
 
@@ -265,12 +282,12 @@ class MainWindow(tk.Tk):
 
         if not self.have_internet(): 
             if messagebox.askretrycancel("No connection","No connection to YouTube found"):
-                self.retry_setup(None,layout)
+                self.retry_setup(layout)
             else:
                 self.destroy()
                 return
     
-    def change_path(self,event=None,frame:WindowLayout=None)->None:
+    def change_path(self,frame:WindowLayout)->None:
         path = filedialog.askdirectory()
         if path:
             self.path = path
@@ -282,11 +299,11 @@ class MainWindow(tk.Tk):
             frame.path_entry.config(state="readonly") """
         
      
-    def onKey(self,event=None,frame:WindowLayout=None)->None:
+    def onKey(self,event:tk.Event,frame:WindowLayout)->None:
         if not frame:
             return
         main_widgets = frame.winfo_children()
-        iterate_widgets:list[tk.Entry|tk.Label|tk.Button|DropDown] = []
+        iterate_widgets:list[tk.Entry|tk.Label|tk.Button|DropDown|tk.Widget] = []
 
         for widget in main_widgets:
             if not widget.winfo_ismapped():
@@ -311,12 +328,12 @@ class MainWindow(tk.Tk):
             iterate_widgets.append(widget)  
             
         main_widgets = iterate_widgets
-        focused_widget:tk.Widget = frame.focus_get()
+        focused_widget:tk.Misc|None = frame.focus_get()
         print(focused_widget)
         
         if event.keysym == "Return":
             for widget in main_widgets:
-                    if widget == focused_widget and "!button" in str(widget):
+                    if widget == focused_widget and type(widget) == tk.Button:
                         widget.invoke()
                         return 
 
@@ -331,16 +348,17 @@ class MainWindow(tk.Tk):
                     if liste[i] == liste[-1]:
                         return 0
                     return i+1
+            return 0
 
         main_widgets[nextToFocus(focused_widget,main_widgets,event)].focus_set()
         return 
     
-    def submit_link(self,event=None,frame:WindowLayout=None)->None:
+    def submit_link(self,frame:WindowLayout)->None:
         yt_streams, yt, link = None,None,None
         def placeholder(*a,**kw):
             print("hi")
         
-        def getYtObject()->tuple[YouTube,list[Stream],str]:
+        def getYtObject()->tuple[YouTube,pytube.StreamQuery,str]:
             link = frame.yt_link_input.get(get_default=True)
 
             if link.lower() == "placeholder":
@@ -360,7 +378,7 @@ class MainWindow(tk.Tk):
             except TypeError as error:
                 frame.running_tasks -= 1
                 raise NoLink
-            use_oauth = False
+            
             try:
                 access_token = None
                 if os.path.exists(_token_file):
@@ -368,18 +386,19 @@ class MainWindow(tk.Tk):
                         data = json.load(f)
                         access_token = data['access_token']
                 if not access_token:
-                    use_oauth=fetch_bearer_token(self)
+                    if not self.asked_oauth:
+                        self.use_oauth=fetch_bearer_token(self)
+                        self.asked_oauth = True
                 else:
-                    use_oauth = True
-            except error as e:
+                    self.use_oauth = True
+            except Exception as e:
                 print(e)
             
             if not self.have_internet():
                 raise NoConnection
             try:
-
                 yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,
-                            use_oauth=use_oauth, allow_oauth_cache=use_oauth)
+                            use_oauth=self.use_oauth, allow_oauth_cache=self.use_oauth)
                 streams = yt.streams
             
             except exceptions.RegexMatchError:
@@ -391,7 +410,7 @@ class MainWindow(tk.Tk):
                 messagebox.showwarning("Video private","This video is private\nDownload unavailable")
                 raise Exception
             except exceptions.VideoUnavailable as e:
-                messagebox.showwarning("Video unavailable",e.error_string())
+                messagebox.showwarning("Video unavailable",e.error_string)
                 raise Exception
             except URLError as e:
                 messagebox.showwarning("Network error",f"A network error has occured with the following exception:\n{e}")
@@ -425,14 +444,13 @@ class MainWindow(tk.Tk):
                 return
             
         else:
-            yt_streams:list[pytube.Stream]|None = self.streams
+            yt_streams:pytube.StreamQuery|None = self.streams
         streams = []
         if yt_streams == None or yt==None:
             return
         
         for x in yt_streams:
             single_stream = []
-            import pytube
             
             try:
                 single_stream.append(x.itag)
@@ -489,7 +507,7 @@ class MainWindow(tk.Tk):
         frame.running_tasks -= 1
         return 
 
-    def start_download(self,event=None,frame:WindowLayout=None)->None:
+    def start_download(self,frame:WindowLayout)->None:
         vid_type = frame.dropdown_type.get()
         vid_qual = frame.dropdown_vid_res.get()
         aud_qual = frame.dropdown_aud.get()
@@ -547,24 +565,24 @@ class MainWindow(tk.Tk):
 
     def hide_show_widgets(self,frame:tk.Frame,hide=True)->None:
         liste = frame.winfo_children()
-
+        liste = [x for x in liste if "!frame" in str(x)]
         
-        for i in range(5,len(liste)):
+        for i in range(len(liste)):
             if hide:
                 liste[i].grid_remove()
             else:
                 liste[i].grid()
 
 
-    def initPopup(self:object=None, root:tk.Tk = None,wid:str="300x400", 
-                  focus:bool=False, title: str = "", resizable:bool = False) -> tk.Tk:
+    def initPopup(self:object, root:tk.Tk,wid:str="300x400", 
+                  focus:bool=False, title: str = "", resizable:bool = False) -> tk.Toplevel|tk.Tk|None:
         """Lager et tkinter vindu sentrert på skjermen, uansett størrelse. 
         Hvis root ikke er definert, leger et nytt vindu som blir lukket når hovedvinduet lukkes
         \n:focus: om vinduet skal lukkes når brukeren klikker av
         \n:root: tkinter vinduet som skal bli modifisert, ofte hovedvinduet
         \n:title: tittelen på vinduet"""
 
-        def center(win:tk.Tk)->None:
+        def center(win:tk.Tk|tk.Toplevel)->None:
             """
             centers a tkinter window on the monitor
             :param win: the main window or Toplevel window to center
@@ -606,7 +624,7 @@ class MainWindow(tk.Tk):
         if root == None:
             return tkPopup
 
-        return tkPopup
+        
 
     def raise_toplevel_windows(self,event=None):
         if event == "<FocusIn>" and self.focusedout:
@@ -640,12 +658,12 @@ class MainWindow(tk.Tk):
         finally:
             conn.close()
  
-    def retry_setup(self,event=None,frame:WindowLayout=None)->None:
+    def retry_setup(self,frame:WindowLayout)->None:
         if not frame:
             return
-        def destroy_widgets(frame:WindowLayout):
+        def destroy_widgets(frame:tk.Frame):
             for widget in frame.winfo_children():
-                if "!frame" in str(widget):
+                if type(widget) == tk.Frame:
                     destroy_widgets(widget)
                 else:
                     widget.destroy()
@@ -667,10 +685,13 @@ class MainWindow(tk.Tk):
             self.state('zoomed')
         return
 
-    def window_state_changed(self,event=None,frame:WindowLayout=None)->None:
+    def window_state_changed(self,event,frame:WindowLayout)->None:
         def resize_text(i,k):
             i = int(i*k)
-            if i == frame.default_font.config()["size"]:
+            font = frame.default_font.config()
+            if font is None:
+                return
+            if i == font["size"]:
                 return
             
             for font in frame.all_fonts:
@@ -764,7 +785,7 @@ def cache_tokens(access_token:str, refresh_token:str, expires:int)->None:
     with open(_token_file, 'w') as f:
         json.dump(data, f)
 
-def fetch_bearer_token(parent:WindowLayout=None):
+def fetch_bearer_token(parent:MainWindow):
     """Fetch an OAuth token. Modified method from pytube\n\nWIP"""
     # Subtracting 30 seconds is arbitrary to avoid potential time discrepencies
     start_time = int(time.time() - 30)
@@ -812,8 +833,8 @@ def fetch_bearer_token(parent:WindowLayout=None):
     cache_tokens(access_token=access_token, refresh_token=refresh_token, expires=expires)
     return True
 
-def run_download(root:MainWindow=None,stream_objects:list[Stream]=None,
-                 will_concate:bool=None,size_scale:float = 1, button_color:str = "white"):
+def run_download(root:MainWindow,stream_objects:list[Stream],
+                 will_concate:bool,size_scale:float = 1, button_color:str = "white"):
     DownloadGUI(root,stream_objects,will_concate,size_scale,button_color)
 
 if __name__ == "__main__":
