@@ -24,7 +24,7 @@ class DropDown(tk.OptionMenu):
         # add the callback function to the dropdown
         dd.add_callback(callback)
     """
-    def __init__(self, parent:tk.Misc, options: list, initial_value: str="",font: Font|None =None ):
+    def __init__(self, parent:tk.Misc, options: list, initial_value: str="",font: Font|None =None )->None:
         """
         Constructor for dropdown entry
 
@@ -36,8 +36,7 @@ class DropDown(tk.OptionMenu):
         self.var = tk.StringVar(parent)
         self.var.set(initial_value if initial_value else options[0])
 
-        self.option_menu = option_menu = tk.OptionMenu.__init__(self, parent, self.var,*options)
-     
+        tk.OptionMenu.__init__(self, parent, self.var,*options)
         if font:
             self.config(font=font)
             #helv20 = tkFont(family=font[0], size=font[1])
@@ -209,7 +208,7 @@ class TkCustomEntry(tk.Entry):
             self.insert(0, self.text)
             self.config(fg = self.temp_color)
 
-    def insert(self, index: int, string: str,
+    def insert(self, index: str|int, string: str,
             as_default:bool=True,*args,**kwargs) -> None:
         """
         Insert text into the entry, in the color and maner as default text
@@ -371,7 +370,7 @@ class TkImageLabel(tk.Label):
         super().__init__(parent, *args, **kwargs)
         self.size = (50,50)
         self.loc = 0 # The current frame index
-        self.frames = []
+        self.frames:list[ImageTk.PhotoImage] = []
         self.image = image # The image or GIF path ro Image to display
         self.delay = 100 # The delay between frames in the GIF, in ms. Default 100
         self.continue_animation = False
@@ -488,6 +487,7 @@ class TkImageLabel(tk.Label):
         self.set_img(self.image,size)
         if stopped:
             self.run()
+        return None
 
 
 class TkNewDialog(tk.Toplevel):
@@ -623,7 +623,7 @@ class TkMessageDialog(TkNewDialog):
         self.okorcancel = False
         self.destroy()
     
-    def get(self):
+    def get(self) -> bool:
         """
         Awaits user input and returns the result
         Returns True if OK was pressed, False if Cancel was pressed
