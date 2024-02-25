@@ -61,7 +61,7 @@ class WindowLayout(tk.Frame):
 
         self.all_fonts = [default_font,headline_font,path_font]
         
-        def type_dropdown_func(root:MainWindow):
+        def type_dropdown_func(root:MainWindow,*args,**kwargs):
             key = dropdown_type.get()
             video_value = root.video_attributes[key]
 
@@ -110,8 +110,8 @@ class WindowLayout(tk.Frame):
                 return
             def run(root):
                 fetch_bearer_token(root)
-
-            threading.Thread(target=run,args=(self.root,)).start()
+            run(self.root)
+            #threading.Thread(target=run,args=(self.root,)).start()
         
         login_button = tk.Button(self,text="Login",command=fetch,
             bg = MainWindow.button_color,font=path_font)
@@ -329,7 +329,6 @@ class MainWindow(tk.Tk):
             
         main_widgets = iterate_widgets
         focused_widget:tk.Misc|None = frame.focus_get()
-        print(focused_widget)
         
         if event.keysym == "Return":
             for widget in main_widgets:
@@ -598,7 +597,6 @@ class MainWindow(tk.Tk):
             x = (screen_width - width)//2
             y = (screen_height - height)//2
             string = '%dx%d+%d+%d' % (width, height, x, y)
-            print(string)
             root.geometry(string)
             win.deiconify()
 
@@ -719,7 +717,6 @@ class MainWindow(tk.Tk):
             if frame.gif_label.size == new_size:
                 return
             gif_size = new_size
-            print(gif_size)
             frame.gif_label.resize(gif_size)
 
 
@@ -793,19 +790,23 @@ def fetch_bearer_token(parent:MainWindow):
         'client_id': _client_id,
         'scope': 'https://www.googleapis.com/auth/youtube'
     }
-    response = request._execute_request(
-        'https://oauth2.googleapis.com/device/code',
-        'POST',
-        headers={
-            'Content-Type': 'application/json'
-        },
-        data=data
-    )
+    try:
+        response = request._execute_request(
+            'https://oauth2.googleapis.com/device/code',
+            'POST',
+            headers={
+                'Content-Type': 'application/json'
+            },
+            data=data
+        )
+    except URLError as e:
+        messagebox.showwarning("Network error",f"A network error has occured with the following exception:\n{e}")
+        return False
     response_data = json.loads(response.read())
     verification_url = response_data['verification_url']
     user_code = response_data['user_code']
     
-    message = message_dialog(parent,website=verification_url,text=user_code,titel="YouTube verification")
+    message = message_dialog(parent,website=verification_url,text=user_code,title="YouTube login")
     #parent.wait_window(message)
     if not message:
         return False
@@ -816,15 +817,21 @@ def fetch_bearer_token(parent:MainWindow):
         'device_code': response_data['device_code'],
         'grant_type': 'urn:ietf:params:oauth:grant-type:device_code'
     }
-    response = request._execute_request(
-        'https://oauth2.googleapis.com/token',
-        'POST',
-        headers={
-            'Content-Type': 'application/json'
-        },
-        data=data
-    )
-
+    try:
+        response = request._execute_request(
+            'https://oauth2.googleapis.com/token',
+            'POST',
+            headers={
+                'Content-Type': 'application/json'
+            },
+            data=data
+        )
+    except URLError as e:
+        if str(e) == "HTTP Error 428: Precondition Required":
+            messagebox.showwarning("Login error","The login was not completed\nPlease try again")
+        else:
+            messagebox.showwarning("Network error",f"A network error has occured with the following exception:\n{e}")
+        return False
     response_data = json.loads(response.read())
 
     access_token:str = response_data['access_token']
