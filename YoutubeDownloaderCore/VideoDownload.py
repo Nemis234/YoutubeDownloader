@@ -29,14 +29,37 @@ from urllib.error import URLError
 import http.client as httplib #Cheks for internet connection
 #Other
 from collections import defaultdict 
+from dataclasses import dataclass, field
 
 #Download GUI
 from DownloadGUI import DownloadGUI
 
 
-class Size(tuple):
+
+@dataclass
+class StreamData:
+    itag:int
+    type:str
+    format:str
+    resolution:str|None = None
+    quality:str|None = None
+
+
+class StreamList(list):
     def __init__(self) -> None:
-        super().__init__()
+        list().__init__(self)
+
+    def get_video(self) -> list[StreamData]:
+        liste = [x for x in self if x.type == "video"]
+        for i,x in enumerate(liste):
+            if x.quality is not None:
+                liste[i].format += " (w/audio)"
+        return liste
+    
+    def get_audio(self) -> list[StreamData]:
+        return [x for x in self if x.type == "audio"]
+    
+
 
 
 class WindowLayout(tk.Frame):
@@ -68,10 +91,10 @@ class WindowLayout(tk.Frame):
             dropdown_aud.grid_remove()
             label_qual.grid_remove()
 
-            root.audio_bool = False
+            #root.audio_bool = False
 
             if key in list(root.audio_attributes.keys()):
-                root.audio_bool = True
+                #root.audio_bool = True
 
                 audio_value = root.audio_attributes[key]
                 numbers = [int("".join(x for x in hallo if x.isdigit())) for hallo in audio_value if hallo != None]
@@ -92,7 +115,7 @@ class WindowLayout(tk.Frame):
             numbers.sort(reverse=True)
 
             video_value = [str(x)+"p" for x in numbers]
-            video_value = video_value + ["None"] if root.audio_bool else video_value
+            video_value = video_value + ["None"]# if root.audio_bool else video_value
             dropdown_vid_res.update_options(video_value)
             
             if len(video_value) > 1:
@@ -272,7 +295,7 @@ class MainWindow(tk.Tk):
         self.use_oauth = False
         self.asked_oauth = False
 
-        self.audio_bool = False
+        #self.audio_bool = False
 
         self.focusedout = False
         self.window_configure_count = 0
@@ -444,40 +467,30 @@ class MainWindow(tk.Tk):
             
         else:
             yt_streams:pytube.StreamQuery|None = self.streams
-        streams = []
+        
         if yt_streams == None or yt==None:
             return
-        
-        for x in yt_streams:
-            single_stream = []
-            
-            try:
-                single_stream.append(x.itag)
-            except: single_stream.append(None)
-            try:
-                single_stream.append(tuple(x.mime_type.split("/")))
-            except: single_stream.append(None)
-            try:
-                single_stream.append(x.resolution)
-            except: single_stream.append(None)
-            try:
-                single_stream.append(x.abr)
-            except: single_stream.append(None)
-            """ try:
-                hei.append(x.acodec)
-            except: hei.append(None) """
-            streams.append(single_stream)
-        video_streams = [x for x in streams if x[1][0] == "video"]
-                                            #Stream_number file_type video_quality audio_quality, only video         Video with audio
-        self.video_type_res = video_type_res = [(x[0]      ,x[1][1],   x[2]) if       x[3] ==    None else (x[0],f"{x[1][1]} (w/audio)",x[2]) for x in video_streams]
 
-        audio_streams = [x for x in streams if x[1][0] == "audio"]
-        self.audio_type_quality = audio_type_quality = [(x[0],x[1][1],x[3]) for x in audio_streams]
-        
-        for number, types,res in video_type_res:
-            self.video_attributes[types].append(res)
-        for number,types,quality in audio_type_quality:
-            self.audio_attributes[types].append(quality)
+        streams = StreamList()
+        for x in yt_streams:
+            single_stream = StreamData(x.itag,*x.mime_type.split("/"))
+
+            try:
+                single_stream.resolution = x.resolution
+            except: pass
+            try:
+                single_stream.quality = x.abr
+            except: pass
+            streams.append(single_stream)
+
+        self.video_type_res = video_type_res = streams.get_video()
+        self.audio_type_quality = audio_type_quality = streams.get_audio()
+
+        for stream in video_type_res:
+            self.video_attributes[stream.format].append(stream.resolution)
+        for stream in audio_type_quality:
+            self.audio_attributes[stream.format].append(stream.quality)
+
 
         self.audio_attributes = dict(self.audio_attributes)
 
@@ -527,22 +540,21 @@ class MainWindow(tk.Tk):
         stream_objects = []
 
         if vid_qual != "None":
-            for number,string,quality in dictionary:
-                if string == vid_type and quality == vid_qual:
-                    video_number = number
+            for stream in dictionary:
+                if stream.format == vid_type and stream.resolution == vid_qual:
+                    video_number = stream.itag
 
             stream_objects.append(Stream(yt,video_number,"video",filename))
 
-        if self.audio_bool and aud_qual != "None":
+        if aud_qual != "None": #and self.audio_bool and :
             dictionary = self.audio_type_quality
 
-            for number,string,quality in dictionary:
-                if string == vid_type and quality == aud_qual:
-                    audio_number = number
-            
+            for stream in dictionary:
+                if stream.format == vid_type and stream.quality == aud_qual:
+                    audio_number = stream.itag
+
             stream_objects.append(Stream(self.yt,audio_number,"audio","Audio "+filename))
-            
-            pass
+
 
             if video_number and audio_number:
                 if False:
