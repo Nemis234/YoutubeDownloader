@@ -24,7 +24,7 @@ class DropDown(tk.OptionMenu):
         # add the callback function to the dropdown
         dd.add_callback(callback)
     """
-    def __init__(self, parent:tk.Misc, options: list, initial_value: str="",font: Font|None =None )->None:
+    def __init__(self, parent:tk.Misc, options: list, initial_value: str="",font: Font|None=None)->None:
         """
         Constructor for dropdown entry
 
@@ -45,7 +45,7 @@ class DropDown(tk.OptionMenu):
 
         self.callback = None
 
-    def add_callback(self, callback: Callable):
+    def add_callback(self, callback: Callable)->None:
         """
         Add a callback on change
 
@@ -53,15 +53,15 @@ class DropDown(tk.OptionMenu):
         :return: 
         """
         if not callable(callback):
-            raise TypeError("callback must be callable")
+            raise TypeError("Callback must be callable")
         
-        def internal_callback(*args):
+        def internal_callback(*args, **kwargs):
             callback()
 
         #self.var.trace("w", internal_callback) --Deprecated
         self.var.trace_add("write", internal_callback)
 
-    def get(self):
+    def get(self)->str:
         """
         Retrieve the value of the dropdown
 
@@ -69,7 +69,7 @@ class DropDown(tk.OptionMenu):
         """
         return self.var.get()
 
-    def set(self, value: str):
+    def set(self, value: str)->None:
         """
         Set the value of the dropdown
 
@@ -78,7 +78,7 @@ class DropDown(tk.OptionMenu):
         """
         self.var.set(value)
 
-    def update_options(self,options:list):
+    def update_options(self,options:list)->None:
         """
         Updates the available options in the dropdown
         :param options: a list containing the drop down options
@@ -128,6 +128,8 @@ class TkCopyableLabel(ttk.Entry):
             kwargs['textvariable'] = self.variable
         
         ttk.Entry.__init__(self, parent, *args, **kwargs)
+        # change width of self
+        self.config(width=len(text))
 
     def set(self, value:str) -> None:
         """
@@ -242,6 +244,22 @@ class TkCustomEntry(tk.Entry):
             return ''
         return tk.Entry.get(self,*args,**kwargs)
 
+    def update_text(self, text: str|None=None) -> None:
+        """
+        Update the default text in the entry
+
+        :param text: The new default text. If none, update 
+        the entry field to be  the default text\n
+        :return:
+        """
+        if text is None:
+            text = self.text
+        else:
+            self.text = text
+        
+        self.delete(0, tk.END)
+        self.insert(0, text)
+
 class TkWeblink(tk.Label):
     """
     A label that opens a web link when clicked.
@@ -270,8 +288,8 @@ class TkWeblink(tk.Label):
 
         tk.Label.__init__(self, parent, text=text, *args, **kwargs)
         self.init_binds()
-
-    def init_binds(self):
+    
+    def init_binds(self)->None:
         """
         Initialize the binds for the label
         Must be called after the label is initialized
@@ -279,17 +297,24 @@ class TkWeblink(tk.Label):
         :return:
         """
         self._entered = False
-        self.bind("<ButtonRelease-1>", self._web_link)
         self.bind("<Enter>", self._on_enter)
         self.bind("<Leave>", self._on_leave)
+        self.bind("<ButtonRelease-1>", self._web_link)
+        self.bind("<Return>",self._open_link)
 
     def _web_link(self, event:tk.Event|None):
         """
-        Internal function to open the web link
+        Internal function to open the web link if the mouse is within
+        the widgets borders
         """
         if self._entered:
-            webbrowser.open_new(self.link)
-    
+            self._open_link(None)
+    def _open_link(self,event:tk.Event|None):
+        """
+        Internal function to open a stored web link
+        """
+        webbrowser.open_new(self.link)
+
     def _on_enter(self, event:tk.Event|None):
         """
         Internal function to set the _entered flag to True
@@ -300,7 +325,7 @@ class TkWeblink(tk.Label):
         Internal function to set the _entered flag to False
         """
         self._entered = False
-
+    
 class TkCopyableWeblink(TkCopyableLabel, TkWeblink):
     def __init__(self, parent: tk.Misc, text: str,link:str="", *args, **kwargs) -> None:
         """An Entry widget that opens a web link when clicked.
@@ -501,12 +526,17 @@ class TkNewDialog(tk.Toplevel):
 
         # add widgets to the dialog
         tk.Label(dialog, text='Dialog contents').pack()
+        # show the dialog
+        dialog.deiconify()
 
     """
     def __init__(self, parent:tk.Tk|tk.Toplevel, title:str="",geometry:str="250x125",*args, **kwargs) -> None:
         """
         Makes a new toplevel window with the parent as the parent.
-        The window will be centered on the user screen.
+        The window will be centered on the user screen, 
+        and transient to the parent window.
+        The window will be withdrawn, use deiconify to show it 
+        after initializing the window.
 
         :param title: The title of the window\n
         :param geometry: The geometry of the window\n
@@ -515,6 +545,7 @@ class TkNewDialog(tk.Toplevel):
             title = ""
 
         tk.Toplevel.__init__(self, parent, *args, **kwargs)
+        self.withdraw()
         self.title(title)
         self.geometry(geometry)
         #self.attributes('-topmost', 'true')
@@ -523,7 +554,7 @@ class TkNewDialog(tk.Toplevel):
         self.center()
         self.grab_set()
     
-    def center(self):
+    def center(self)->None:
         """
         Centers a tkinter window on the monitor
         """
@@ -567,17 +598,17 @@ class TkMessageDialog(TkNewDialog):
         if not "background" in kwargs:
             kwargs["background"] = "white"
         super().__init__(parent, title, *args, **kwargs)
-
         """ if not font:
             font = Font(family="Helvetica", size=10) """
         style = ttk.Style()
         # Emulates the tk.Label look
         style.configure("TkMessageDialog.TLabel",background=kwargs["background"],)
 
+        self.bind_class("TButton", "<Return>", lambda event: event.widget.invoke())
+
         # The result of the dialog
         self.okorcancel = False
 
-        self.resizable(False, False)
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
@@ -594,8 +625,11 @@ class TkMessageDialog(TkNewDialog):
         ttk.Label(frame2, 
             text="Please go to this website\nand enter the following code:"
             ,anchor=tk.W, justify="left",style="TkMessageDialog.TLabel").pack(anchor="w")
-        TkCopyableWeblink(frame2, text=website,font=font,style="TkMessageDialog.TLabel").pack()
-        TkCopyableLabel(frame2, text=code,font=font,style="TkMessageDialog.TLabel").pack()
+        weblink = TkCopyableWeblink(frame2, text=website,font=font,style="TkMessageDialog.TLabel")
+        weblink.pack()
+        
+        code = TkCopyableLabel(frame2, text=code,font=font,style="TkMessageDialog.TLabel")
+        code.pack()
 
         # Bottom of the dialog
         frame3 = ttk.Frame(self)
@@ -610,13 +644,29 @@ class TkMessageDialog(TkNewDialog):
         frame2.grid(row=0, column=1, sticky=tk.N+tk.S+tk.E+tk.W,)
         frame3.grid(row=1, column=0, columnspan=2, sticky=tk.N+tk.S+tk.E+tk.W)
 
-    def _pressed_ok(self):
+        # make the dialog change size if width of frame1 + frame2 is larger than the current width
+        self.update_idletasks()
+        
+        scale = 19/3
+        label_width = 36
+        max_x = [label_width+int((len(weblink.get())*scale)//1),
+            label_width+int((len(code.get())*scale)//1),
+            self.winfo_width()]
+        max_y = [self.winfo_height()]
+        self.geometry(f"{max(max_x)}x{max(max_y)}")
+
+        self.update_idletasks()
+        self.resizable(False, False)
+        self.deiconify()
+
+
+    def _pressed_ok(self)->None:
         """
         Called when the OK button is pressed
         """
         self.okorcancel = True
         self.destroy()
-    def _pressed_cancel(self):
+    def _pressed_cancel(self)->None:
         """
         Called when the Cancel button is pressed
         """
@@ -646,9 +696,16 @@ def message_dialog(parent: tk.Tk|tk.Toplevel,website:str,text:str, title: str = 
     :param title: The title of the window\n
     :param font: A tk.font.Font to use --Not in use\n
 
-    :return: The result of the dialog\n
+    :return: A boolean, the result of the dialog\n
     """
-    dialog = TkMessageDialog(parent, text, website, title, font, *args, **kwargs)#.show()
+    website = str(website)
+    website = website.strip()
+    text = str(text)
+    text = text.strip()
+    title = str(title)
+    title = title.strip()
+
+    dialog = TkMessageDialog(parent, website, text, title, font, *args, **kwargs)
     
     return dialog.get()
 
@@ -660,7 +717,7 @@ if __name__ == "__main__":
         def callback():
             
             from tkinter import messagebox
-            hei = message_dialog(parent, "Hei der","https://www.google.com/devices", "Test")
+            hei = message_dialog(parent,"https://www.google.com","hei", "Test")
             print(hei)
             #messagebox.askokcancel("Test", "Test\ntest\ntestTest\ntest\ntest")
         #TkWeblink(hei, text="Click me", link="https://www.google.com").pack()
@@ -671,7 +728,7 @@ if __name__ == "__main__":
         tk.Button(parent, text="Click me", command=callback).pack()
         parent.mainloop()
     
-    #testing()
+    testing()
     
 
 
