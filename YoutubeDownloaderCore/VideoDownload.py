@@ -1,7 +1,7 @@
 from __future__ import annotations
 #Youtube downloader
-from pytube import YouTube, request
-import pytube
+from yt_dlp import YoutubeDL
+
 #Pathing
 from os import makedirs #,listdir --Deprecated
 from os.path import dirname,exists
@@ -18,13 +18,11 @@ import threading
 #Custom tkinter widgets
 from myCustomTkinter import DropDown, message_dialog, TkCopyableLabel, TkCustomEntry, TkImageLabel
 #Oauth
-from pytube.innertube import _cache_dir,_token_file,_client_id,_client_secret
 import os,json,time
 #Streams and WebImage classes
 from HelperClasses import Stream, WebImage
 #Error handeling
 from CustomExceptions import NoLink, NoConnection
-from pytube import exceptions
 from urllib.error import URLError
 import http.client as httplib #Cheks for internet connection
 #Other
@@ -38,15 +36,15 @@ from DownloadGUI import DownloadGUI
 
 @dataclass
 class StreamData:
-    itag:int
-    type:str
-    format:str
-    resolution:str|None = None
-    quality:str|None = None
+    format_id:int #ID of the stream using yt_dlp
+    type:str #video or audio
+    format:str #mp4, mp3 etc
+    resolution:str|None = None #144p, 240p etc
+    quality:str|None = None #70kbps, 160kbps etc
 
 
-class StreamList(list):
-    def __init__(self) -> None:
+class StreamList(list[StreamData]):
+    def __init__(self) -> list[StreamData]:
         list().__init__(self)
 
     def get_video(self) -> list[StreamData]:
@@ -186,8 +184,8 @@ class WindowLayout(tk.Frame):
         thumbnail_label.image = tk_thubmnail
         thumbnail_label.pack()#anchor="nw",padx=1,pady=1)
 
-        title_label = tk.Label(thumb_frame,text="Title:",font=path_font)
-        title_label.pack(side=tk.LEFT)
+        #title_label = tk.Label(thumb_frame,text="Title:",font=path_font)
+        #title_label.pack(side=tk.LEFT)
         self.video_title= video_title = tk.Label(thumb_frame,text="Placeholder",font=path_font)
         video_title.pack(side=tk.LEFT)
 
@@ -289,9 +287,9 @@ class MainWindow(tk.Tk):
         self.audio_type_quality = list()
         self.video_type_res = list()
 
-        self.yt:YouTube
         self.link = ""
-        self.streams = None
+        self.video_info = dict()
+        self.ydlp = YoutubeDL()
         self.use_oauth = False
         self.asked_oauth = False
 
@@ -375,18 +373,52 @@ class MainWindow(tk.Tk):
         main_widgets[nextToFocus(focused_widget,main_widgets,event)].focus_set()
         return 
     
+    
+    def extract_info(self,video_info) -> dict:
+        new_list = []
+        for dictionary in video_info["formats"]:
+            if "format_note" in dictionary.keys():
+                if not any(x in dictionary["format_note"] for x in ["storyboard", "Premium"]):
+                    #print(dictionary["format_note"])
+                    if not "Default" in dictionary["format_note"]:
+                        new_list.append(dictionary)
+                    
+        audio_only = []
+        i = 0
+        while i < len(new_list):
+            dictionary = new_list[i]
+            if "audio only" == dictionary["resolution"]:
+                audio_only.append(dictionary)
+                new_list.pop(i)
+            else:
+                i+=1
+                
+
+        video_only =[]
+        i = 0
+        while i < len(new_list):
+            dictionary = new_list[i]
+            if "none" == dictionary["acodec"]:
+                video_only.append(dictionary)
+                new_list.pop(i)
+            else:
+                i+=1
+
+        audio_video = new_list
+
+        return audio_only,video_only,audio_video,video_info
+
+
     def submit_link(self,frame:WindowLayout)->None:
-        yt_streams, yt, link = None,None,None
         def placeholder(*a,**kw):
             print("hi")
         
-        def getYtObject()->tuple[YouTube,pytube.StreamQuery,str]:
-            link = frame.yt_link_input.get(get_default=True)
-
-            if link.lower() == "placeholder":
+        def getInfoDict()->tuple:
+            url = frame.yt_link_input.get(get_default=True)
+            if url.lower() == "placeholder":
                 frame.running_tasks -= 1
                 raise NoLink
-            if not link:
+            if not url:
                 frame.running_tasks -= 1
                 raise NoLink
             
@@ -395,13 +427,15 @@ class MainWindow(tk.Tk):
                         "youtu.be/"]
             
             try:
-                if not any([(True if x in link else False) for x in valid]):
-                    link = "youtube.com/watch?v=" + link 
+                if not any([(True if x in url else False) for x in valid]):
+                    url = "https://www.youtube.com/watch?v=" + url 
             except TypeError as error:
                 frame.running_tasks -= 1
                 raise NoLink
             
-            try:
+            #deprecated ???
+            #--------------------------------
+            """ try:
                 access_token = None
                 if os.path.exists(_token_file):
                     with open(_token_file) as f:
@@ -414,45 +448,59 @@ class MainWindow(tk.Tk):
                 else:
                     self.use_oauth = True
             except Exception as e:
-                print(e)
+                print(e) """
+            #--------------------------------
             
             if not self.have_internet():
                 raise NoConnection
+            # NEW METHOD
+            #--------------------------------
+            def get_video_info(url:str) -> dict:
+                info_dict:dict[dict] = self.ydlp.extract_info(url=url, download=False)
+                #with open("info_on_video.json", "w") as f:
+                #    json.dump(info_dict, f)
+                #info_dict:dict = json.load(open("info_on_video.json", "r"))
+                if not info_dict:
+                    return {}
+                # If the video is live, return None
+                if not info_dict["live_status"] == "not_live":
+                    return {}
+                return info_dict
+
+
             try:
-                yt = YouTube(link,on_progress_callback=placeholder,on_complete_callback=placeholder,
-                            use_oauth=self.use_oauth, allow_oauth_cache=self.use_oauth)
-                streams = yt.streams
+                audio_only,video_only,audio_video,video_info = self.extract_info(get_video_info(url))
+
             
-            except exceptions.RegexMatchError:
-                raise NoLink
-            except exceptions.AgeRestrictedError:
-                messagebox.showwarning("Agerestricted","This video is age restricted\nDownload unavailable")
-                raise Exception
-            except exceptions.VideoPrivate:
-                messagebox.showwarning("Video private","This video is private\nDownload unavailable")
-                raise Exception
-            except exceptions.VideoUnavailable as e:
-                messagebox.showwarning("Video unavailable",e.error_string)
-                raise Exception
+                """ except exceptions.RegexMatchError:
+                    raise NoLink
+                except exceptions.AgeRestrictedError:
+                    messagebox.showwarning("Agerestricted","This video is age restricted\nDownload unavailable")
+                    raise Exception
+                except exceptions.VideoPrivate:
+                    messagebox.showwarning("Video private","This video is private\nDownload unavailable")
+                    raise Exception
+                except exceptions.VideoUnavailable as e:
+                    messagebox.showwarning("Video unavailable",e.error_string)
+                    raise Exception """
             except URLError as e:
                 messagebox.showwarning("Network error",f"A network error has occured with the following exception:\n{e}")
                 raise Exception
             except Exception as e:
                 messagebox.showwarning("Unknown error",f"An unknown error has occured:\n{e}")
                 raise Exception
+            #--------------------------------
             
-            streams=yt.streams
-
-            return yt,streams,link
+            return url,audio_only,video_only,audio_video,video_info
         
         if not self.link or not self.link.split("?v=")[-1] == frame.yt_link_input.get().split("?v=")[-1]:
             try:
-                yt_link_bundle = getYtObject()
-                if not yt_link_bundle:
+                info_bundle = getInfoDict()
+                if not info_bundle:
                     messagebox.showwarning("Unknown error",f"An unknown error has occured\n Please try again")
                     raise Exception
-                self.yt,self.streams,self.link = yt,yt_streams,link = yt_link_bundle
-            
+                link,audio_only,video_only,audio_video,video_info = info_bundle
+                self.link,self.video_info = link,video_info
             except NoLink:
                 messagebox.showwarning("Invalid input","Invalid link submited\nPlease try again")
                 frame.running_tasks -= 1
@@ -466,25 +514,49 @@ class MainWindow(tk.Tk):
                 return
             
         else:
-            yt_streams:pytube.StreamQuery|None = self.streams
+            print("Using cached data")
+            video_info = self.video_info
+            audio_only,video_only,audio_video = self.extract_info(video_info)
         
-        if yt_streams == None or yt==None:
+        if not any([audio_only,video_only,audio_video]):
+            print("No streams found")
             return
 
-        streams = StreamList()
-        for x in yt_streams:
-            single_stream = StreamData(x.itag,*x.mime_type.split("/"))
+        #DEPRECATED ????
+        #--------------------------------
+        audio_streams = StreamList()
+        video_streams = StreamList()
+        aud_vid_streams = StreamList()
+
+        for x in audio_only:
+            single_stream = StreamData(x["format_id"],"audio",x["ext"])
 
             try:
-                single_stream.resolution = x.resolution
+                single_stream.quality = x["abr"]
+            except: pass
+            audio_streams.append(single_stream)
+        for x in video_only:
+            single_stream = StreamData(x["format_id"],"video",x["ext"])
+
+            try:
+                single_stream.resolution = x["resulution"]
+            except: pass
+            video_streams.append(single_stream)
+        for x in audio_video:
+            single_stream = StreamData(x["format_id"],"video",x["ext"])
+
+            try:
+                single_stream.resolution = x["resolution"]
             except: pass
             try:
-                single_stream.quality = x.abr
+                single_stream.quality = x["abr"]
             except: pass
-            streams.append(single_stream)
+            aud_vid_streams.append(single_stream)
+        
+        print(video_streams)
 
-        self.video_type_res = video_type_res = streams.get_video()
-        self.audio_type_quality = audio_type_quality = streams.get_audio()
+        self.video_type_res = video_type_res = video_streams
+        self.audio_type_quality = audio_type_quality = audio_streams
 
         for stream in video_type_res:
             self.video_attributes[stream.format].append(stream.resolution)
@@ -498,6 +570,8 @@ class MainWindow(tk.Tk):
 
         video_type_options = list(video_attributes.keys())
         video_type_options.sort()
+        #--------------------------------
+
         frame.dropdown_type.update_options(video_type_options)
         
         if not self.have_internet():
@@ -512,7 +586,7 @@ class MainWindow(tk.Tk):
         thumbnail_label.config(image=thumbnail_photo)
         thumbnail_label.image = thumbnail_photo
 
-        frame.video_title.configure(text=yt.title)
+        frame.video_title.configure(text=video_info["title"])
 
         self.hide_show_widgets(frame,False)
         
@@ -533,8 +607,8 @@ class MainWindow(tk.Tk):
             messagebox.showerror("Option-error","No option selected\nSelect an option to proceed")
             return
 
-        yt = self.yt
-        filename = yt.streams[0].title
+        
+        filename = self.video_info["title"]
         invalid = r'<>:"/\|?*' #Invalid characters in windows filenames
         filename = "".join([x for x in filename if x not in invalid])
         stream_objects = []
@@ -544,7 +618,7 @@ class MainWindow(tk.Tk):
                 if stream.format == vid_type and stream.resolution == vid_qual:
                     video_number = stream.itag
 
-            stream_objects.append(Stream(yt,video_number,"video",filename))
+            stream_objects.append(Stream(self.ydlp,video_number,"video",filename))
 
         if aud_qual != "None": #and self.audio_bool and :
             dictionary = self.audio_type_quality
@@ -750,7 +824,7 @@ class MainWindow(tk.Tk):
         resize_img(im_size,k)
         resize_gif(gif_size,k)
 
-    def initDownload(self,yt:YouTube,stream_objects:list[Stream],
+    def initDownload(self,stream_objects:list[Stream],
                     will_concate:bool = False,path:str="")->None:
         
         if not path:
@@ -768,9 +842,11 @@ class MainWindow(tk.Tk):
         print(directory)
         print(stream_objects[0].directory)
         
+        DEPRECATED = True
+
         if not self.have_internet():
             if messagebox.askretrycancel("No connection","No connection to YouTube found\nTry again later"):
-                self.initDownload(yt,stream_objects,will_concate,directory)
+                self.initDownload(DEPRECATED,stream_objects,will_concate,directory)
                 return
             return
         
@@ -851,6 +927,7 @@ def fetch_bearer_token(parent:MainWindow):
     expires:int = start_time + response_data['expires_in']
     cache_tokens(access_token=access_token, refresh_token=refresh_token, expires=expires)
     return True
+
 
 def run_download(root:MainWindow,stream_objects:list[Stream],
                  will_concate:bool,size_scale:float = 1, button_color:str = "white"):

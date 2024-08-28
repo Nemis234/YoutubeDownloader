@@ -1,6 +1,4 @@
 from __future__ import annotations
-from pytube import request
-import pytube
 #Pathing
 from os import remove
 from os.path import exists, dirname

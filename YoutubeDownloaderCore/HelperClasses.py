@@ -1,4 +1,3 @@
-from pytube import YouTube
 #Pathing
 from os.path import exists, dirname
 #Images
@@ -11,7 +10,7 @@ from urllib.error import URLError
 from typing import Literal
 
 class Stream:
-    def __init__(self,yt:YouTube,number:int, type:Literal["video","audio"]="video", 
+    def __init__(self,yt,number:int, type:Literal["video","audio"]="video", 
                  filename:str="", prefix:str="", postfix:str="") -> None:
         self.yt = yt
         self.type = type
